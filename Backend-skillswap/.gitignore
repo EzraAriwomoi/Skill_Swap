@@ -1,0 +1,19 @@
+# dependencies
+node_modules/
+
+# optional cache folders
+.expo/
+.expo-shared/
+
+# dotenv environment variables
+.env
+.env.local
+
+# IDE stuff
+.vscode/
+.idea/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

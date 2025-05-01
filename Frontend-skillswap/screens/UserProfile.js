@@ -1,14 +1,28 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native"
+import { useState, useEffect, useContext } from "react"
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+} from "react-native"
 import { Star, MessageCircle, Calendar } from "lucide-react-native"
+import { AuthContext } from "../context/AuthContext"
 import api from "../services/api"
 
 export default function UserProfile({ route, navigation }) {
   const { userId } = route.params
+  const { user: currentUser } = useContext(AuthContext)
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     fetchUserProfile()
@@ -17,47 +31,59 @@ export default function UserProfile({ route, navigation }) {
   const fetchUserProfile = async () => {
     try {
       setLoading(true)
+      setError(null)
       const response = await api.get(`/users/${userId}`)
       setUser(response.data)
     } catch (error) {
       console.log("Error fetching user profile", error)
-      // Use mock data if API fails
-      setUser(getMockUser(userId))
+      setError("Failed to load user profile. Please try again.")
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
   }
 
-  const getMockUser = (id) => {
-    // Mock data for development
-    return {
-      id,
-      name: "David Lee",
-      photoUrl: "https://via.placeholder.com/150",
-      bio: "Certified yoga instructor with 5+ years of experience. I specialize in Hatha and Vinyasa yoga for beginners and intermediate practitioners.",
-      rating: 4.9,
-      reviewCount: 42,
-      skillsOffered: [
-        { skill: "Yoga Instruction", category: "Fitness" },
-        { skill: "Meditation", category: "Fitness" },
-        { skill: "Nutrition Coaching", category: "Health" },
-      ],
-    }
+  const onRefresh = () => {
+    setRefreshing(true)
+    fetchUserProfile()
   }
 
   const handleMessagePress = () => {
-    navigation.navigate("Chat", {
-      chatId: `chat-${userId}`,
-      userName: user.name,
-      userId: userId,
+    if (!currentUser) {
+      Alert.alert("Login Required", "You need to login to send messages", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Login", onPress: () => navigation.navigate("Auth") },
+      ])
+      return
+    }
+
+    // Navigate to the Messages tab first, then to the Chat screen
+    navigation.navigate("Messages", {
+      screen: "Chat",
+      params: {
+        chatId: `chat-${userId}`,
+        userName: user.name,
+        userId: userId,
+      },
     })
   }
 
   const handleBookingPress = () => {
-    navigation.navigate("CreateBooking", { userId, skillName: user.skillsOffered[0].skill })
+    if (!currentUser) {
+      Alert.alert("Login Required", "You need to login to book sessions", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Login", onPress: () => navigation.navigate("Auth") },
+      ])
+      return
+    }
+
+    navigation.navigate("CreateBooking", {
+      userId,
+      skillName: user.skillsOffered[0].skill,
+    })
   }
 
-  if (loading) {
+  if (loading && !refreshing) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#6366f1" />
@@ -65,10 +91,31 @@ export default function UserProfile({ route, navigation }) {
     )
   }
 
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchUserProfile}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    )
+  }
+
+  // Check if this is the current user's profile
+  const isOwnProfile = currentUser && user && currentUser.id === user._id
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#6366f1"]} />}
+    >
       <View style={styles.header}>
-        <Image source={{ uri: user.photoUrl }} style={styles.profileImage} />
+        <Image
+          source={{ uri: user.photoUrl }}
+          style={styles.profileImage}
+          defaultSource={require("../assets/default-avatar.png")}
+        />
         <Text style={styles.name}>{user.name}</Text>
         <View style={styles.ratingContainer}>
           <Star size={18} color="#FFD700" fill="#FFD700" />
@@ -79,30 +126,37 @@ export default function UserProfile({ route, navigation }) {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>About</Text>
-        <Text style={styles.bioText}>{user.bio}</Text>
+        <Text style={styles.bioText}>{user.bio || "No bio available."}</Text>
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Skills Offered</Text>
         <View style={styles.skillsContainer}>
-          {user.skillsOffered.map((skillObj, index) => (
-            <View key={index} style={styles.skillBadge}>
-              <Text style={styles.skillText}>{skillObj.skill}</Text>
-            </View>
-          ))}
+          {user.skillsOffered && user.skillsOffered.length > 0 ? (
+            user.skillsOffered.map((skillObj, index) => (
+              <View key={index} style={styles.skillBadge}>
+                <Text style={styles.skillText}>{skillObj.skill}</Text>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.noSkillsText}>No skills listed</Text>
+          )}
         </View>
       </View>
 
-      <View style={styles.actionButtons}>
-        <TouchableOpacity style={styles.messageButton} onPress={handleMessagePress}>
-          <MessageCircle size={20} color="#fff" />
-          <Text style={styles.buttonText}>Message</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.bookButton} onPress={handleBookingPress}>
-          <Calendar size={20} color="#fff" />
-          <Text style={styles.buttonText}>Book Session</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Only show action buttons if NOT viewing own profile */}
+      {!isOwnProfile && (
+        <View style={styles.actionButtons}>
+          <TouchableOpacity style={styles.messageButton} onPress={handleMessagePress}>
+            <MessageCircle size={20} color="#fff" />
+            <Text style={styles.buttonText}>Message</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.bookButton} onPress={handleBookingPress}>
+            <Calendar size={20} color="#fff" />
+            <Text style={styles.buttonText}>Book Session</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </ScrollView>
   )
 }
@@ -116,6 +170,28 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#ef4444",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: "#6366f1",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
   },
   header: {
     backgroundColor: "#fff",
@@ -188,6 +264,10 @@ const styles = StyleSheet.create({
   skillText: {
     color: "#4f46e5",
     fontWeight: "500",
+  },
+  noSkillsText: {
+    color: "#999",
+    fontStyle: "italic",
   },
   actionButtons: {
     flexDirection: "row",

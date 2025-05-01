@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Alert,
 } from "react-native"
 import { Send } from "lucide-react-native"
 import { AuthContext } from "../context/AuthContext"
@@ -23,21 +24,61 @@ export default function ChatScreen({ route }) {
   const [inputMessage, setInputMessage] = useState("")
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  const [error, setError] = useState(null)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const flatListRef = useRef(null)
 
   useEffect(() => {
     fetchMessages()
   }, [])
 
-  const fetchMessages = async () => {
+  const fetchMessages = async (refresh = false) => {
     try {
       setLoading(true)
-      const response = await api.get(`/messages/${chatId}`)
-      setMessages(response.data)
+      setError(null)
+      const currentPage = refresh ? 1 : page
+      const response = await api.get(`/messages/${chatId}?page=${currentPage}&limit=20`)
+
+      const newMessages = response.data.messages
+      setHasMore(response.data.hasMore)
+
+      if (refresh || currentPage === 1) {
+        setMessages(newMessages)
+        setPage(2)
+      } else {
+        setMessages((prevMessages) => [...prevMessages, ...newMessages])
+        setPage(currentPage + 1)
+      }
     } catch (error) {
       console.log("Error fetching messages", error)
+      setError("Failed to load messages. Please try again.")
     } finally {
       setLoading(false)
+      setLoadingMore(false)
+    }
+  }
+
+  const loadMoreMessages = async () => {
+    if (loadingMore || !hasMore) return
+
+    setLoadingMore(true)
+    try {
+      const response = await api.get(`/messages/${chatId}?page=${page}&limit=20`)
+      const newMessages = response.data.messages
+
+      if (newMessages.length > 0) {
+        setMessages((prevMessages) => [...prevMessages, ...newMessages])
+        setPage(page + 1)
+        setHasMore(response.data.hasMore)
+      } else {
+        setHasMore(false)
+      }
+    } catch (error) {
+      console.log("Error loading more messages", error)
+    } finally {
+      setLoadingMore(false)
     }
   }
 
@@ -45,29 +86,54 @@ export default function ChatScreen({ route }) {
     if (inputMessage.trim() === "") return
 
     setSending(true)
+    const messageText = inputMessage.trim()
+    setInputMessage("")
+
+    // Optimistically add message to UI
+    const tempId = `temp-${Date.now()}`
     const newMessage = {
-      id: Date.now().toString(),
+      id: tempId,
       chatId,
       senderId: user.id,
       receiverId: userId,
-      content: inputMessage,
+      content: messageText,
       timestamp: new Date().toISOString(),
-      sent: true,
+      pending: true,
     }
 
-    setMessages((prevMessages) => [...prevMessages, newMessage])
-    setInputMessage("")
+    setMessages((prevMessages) => [newMessage, ...prevMessages])
 
     try {
-      await api.post("/messages", {
+      const response = await api.post("/messages", {
         receiverId: userId,
-        content: inputMessage,
+        content: messageText,
       })
+
+      // Replace the temporary message with the real one from the server
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) => (msg.id === tempId ? { ...response.data, pending: false } : msg)),
+      )
     } catch (error) {
       console.log("Error sending message", error)
+
+      // Mark message as failed
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) => (msg.id === tempId ? { ...msg, failed: true, pending: false } : msg)),
+      )
+
+      Alert.alert("Error", "Failed to send message. Tap to retry.")
     } finally {
       setSending(false)
     }
+  }
+
+  const retryMessage = async (failedMessage) => {
+    // Remove the failed message
+    setMessages((prevMessages) => prevMessages.filter((msg) => msg.id !== failedMessage.id))
+
+    // Set the content to input and trigger send
+    setInputMessage(failedMessage.content)
+    setTimeout(() => sendMessage(), 100)
   }
 
   const formatTime = (timestamp) => {
@@ -75,39 +141,24 @@ export default function ChatScreen({ route }) {
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
   }
 
-  // Mock data for development
-  const mockMessages = [
-    {
-      id: "1",
-      senderId: "101",
-      content: "Hi there! I saw you're teaching JavaScript. I'd like to learn more about React.",
-      timestamp: "2023-06-15T14:30:00Z",
-    },
-    {
-      id: "2",
-      senderId: user?.id || "current-user",
-      content: "Hey! Yes, I'd be happy to teach you React. When would you like to start?",
-      timestamp: "2023-06-15T14:32:00Z",
-    },
-    {
-      id: "3",
-      senderId: "101",
-      content: "That's great! How about next Monday at 6 PM?",
-      timestamp: "2023-06-15T14:35:00Z",
-    },
-    {
-      id: "4",
-      senderId: user?.id || "current-user",
-      content: "Monday at 6 PM works for me. We can start with the basics of React components.",
-      timestamp: "2023-06-15T14:38:00Z",
-    },
-    {
-      id: "5",
-      senderId: "101",
-      content: "Perfect! Looking forward to it. Should I prepare anything beforehand?",
-      timestamp: "2023-06-15T14:40:00Z",
-    },
-  ]
+  if (loading && messages.length === 0) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#6366f1" />
+      </View>
+    )
+  }
+
+  if (error && messages.length === 0) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={() => fetchMessages(true)}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    )
+  }
 
   return (
     <KeyboardAvoidingView
@@ -115,31 +166,42 @@ export default function ChatScreen({ route }) {
       style={styles.container}
       keyboardVerticalOffset={90}
     >
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6366f1" />
-        </View>
-      ) : (
-        <FlatList
-          ref={flatListRef}
-          data={mockMessages}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => {
-            const isCurrentUser = item.senderId === user?.id
-            return (
-              <View style={[styles.messageBubble, isCurrentUser ? styles.sentMessage : styles.receivedMessage]}>
-                <Text style={[styles.messageText, isCurrentUser ? styles.sentMessageText : styles.receivedMessageText]}>
-                  {item.content}
-                </Text>
-                <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
+      <FlatList
+        ref={flatListRef}
+        data={messages}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => {
+          const isCurrentUser = item.senderId === user?.id
+          return (
+            <TouchableOpacity
+              style={[
+                styles.messageBubble,
+                isCurrentUser ? styles.sentMessage : styles.receivedMessage,
+                item.pending && styles.pendingMessage,
+                item.failed && styles.failedMessage,
+              ]}
+              disabled={!item.failed}
+              onPress={() => item.failed && retryMessage(item)}
+            >
+              <Text style={[styles.messageText, isCurrentUser ? styles.sentMessageText : styles.receivedMessageText]}>
+                {item.content}
+              </Text>
+              <View style={styles.messageFooter}>
+                {item.pending && <ActivityIndicator size="small" color={isCurrentUser ? "#fff" : "#6366f1"} />}
+                {item.failed && <Text style={styles.failedText}>Tap to retry</Text>}
+                {!item.pending && !item.failed && <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>}
               </View>
-            )
-          }}
-          contentContainerStyle={styles.messagesList}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-          onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
-        />
-      )}
+            </TouchableOpacity>
+          )
+        }}
+        contentContainerStyle={styles.messagesList}
+        inverted={true}
+        onEndReached={hasMore ? loadMoreMessages : null}
+        onEndReachedThreshold={0.3}
+        ListFooterComponent={
+          loadingMore ? <ActivityIndicator size="small" color="#6366f1" style={styles.loadingMore} /> : null
+        }
+      />
 
       <View style={styles.inputContainer}>
         <TextInput
@@ -171,6 +233,28 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#ef4444",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: "#6366f1",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
   messagesList: {
     padding: 15,
   },
@@ -195,6 +279,14 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
+  pendingMessage: {
+    opacity: 0.7,
+  },
+  failedMessage: {
+    backgroundColor: "#fee2e2",
+    borderColor: "#ef4444",
+    borderWidth: 1,
+  },
   messageText: {
     fontSize: 16,
   },
@@ -204,11 +296,24 @@ const styles = StyleSheet.create({
   receivedMessageText: {
     color: "#333",
   },
+  messageFooter: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    marginTop: 4,
+  },
   messageTime: {
     fontSize: 10,
     color: "rgba(255, 255, 255, 0.7)",
     alignSelf: "flex-end",
-    marginTop: 4,
+  },
+  failedText: {
+    fontSize: 10,
+    color: "#ef4444",
+    fontStyle: "italic",
+  },
+  loadingMore: {
+    marginVertical: 10,
   },
   inputContainer: {
     flexDirection: "row",

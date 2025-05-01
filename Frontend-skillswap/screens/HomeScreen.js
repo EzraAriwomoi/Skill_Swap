@@ -1,16 +1,35 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator } from "react-native"
-import { Search } from "lucide-react-native"
+import { useState, useEffect, useCallback, useContext } from "react"
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+  Dimensions,
+  SafeAreaView,
+  Platform,
+} from "react-native"
+import Icon from "react-native-vector-icons/Feather"
 import SkillCard from "../components/SkillCard"
 import api from "../services/api"
+import { useFocusEffect } from "@react-navigation/native"
+import { AuthContext } from "../context/AuthContext"
+
+const { width, height } = Dimensions.get("window")
 
 export default function HomeScreen({ navigation }) {
+  const { user: currentUser } = useContext(AuthContext)
   const [searchQuery, setSearchQuery] = useState("")
   const [skills, setSkills] = useState([])
   const [filteredSkills, setFilteredSkills] = useState([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState(null)
   const [categories, setCategories] = useState([
     { id: 1, name: "All", active: true },
     { id: 2, name: "Tech", active: false },
@@ -20,9 +39,11 @@ export default function HomeScreen({ navigation }) {
     { id: 6, name: "Fitness", active: false },
   ])
 
-  useEffect(() => {
-    fetchSkills()
-  }, [])
+  useFocusEffect(
+    useCallback(() => {
+      fetchSkills()
+    }, [])
+  )
 
   useEffect(() => {
     filterSkills()
@@ -31,29 +52,72 @@ export default function HomeScreen({ navigation }) {
   const fetchSkills = async () => {
     try {
       setLoading(true)
-      const response = await api.get("/skills")
-      setSkills(response.data)
-      setFilteredSkills(response.data)
+      setError(null)
+  
+      const response = await api.get(`/skills?excludeUserId=${currentUser?.id}`)
+  
+      if (!response.data || !Array.isArray(response.data)) {
+        throw new Error("Invalid data format received from server")
+      }
+  
+      // Group skills by user
+      const userMap = new Map()
+      filteredData.forEach((skill) => {
+        if (!skill.user || !skill.user.id) return
+  
+        if (!userMap.has(skill.user.id)) {
+          userMap.set(skill.user.id, {
+            ...skill,
+            id: skill.id || `skill-${Math.random().toString(36).substr(2, 9)}`,
+            allSkills: [skill.skill],
+          })
+        } else {
+          if (skill.skill) {
+            userMap.get(skill.user.id).allSkills.push(skill.skill)
+          }
+        }
+      })
+  
+      const uniqueUserSkills = Array.from(userMap.values())
+      setSkills(uniqueUserSkills)
+      setFilteredSkills(uniqueUserSkills)
     } catch (error) {
       console.log("Error fetching skills", error)
-    } finally {
-      setLoading(false)
+    
+      // Only show error if it's a true failure (e.g., server error)
+      if (error.response || error.message.includes("Network")) {
+        setError("Something went wrong. Please try again.")
+      } else {
+        // Friendly fallback
+        setError(null)
+        setSkills([])
+        setFilteredSkills([])
+      }
     }
+     finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }  
+
+  const onRefresh = () => {
+    setRefreshing(true)
+    fetchSkills()
   }
 
   const filterSkills = () => {
     let filtered = [...skills]
 
-    // Filter by search query
     if (searchQuery) {
       filtered = filtered.filter(
         (item) =>
-          item.skill.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          item.user.name.toLowerCase().includes(searchQuery.toLowerCase()),
+          (item.skill && item.skill.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (item.allSkills &&
+            item.allSkills.some((skill) => skill && skill.toLowerCase().includes(searchQuery.toLowerCase()))) ||
+          (item.user && item.user.name && item.user.name.toLowerCase().includes(searchQuery.toLowerCase()))
       )
     }
 
-    // Filter by category
     const activeCategory = categories.find((cat) => cat.active)
     if (activeCategory && activeCategory.name !== "All") {
       filtered = filtered.filter((item) => item.category === activeCategory.name)
@@ -67,159 +131,121 @@ export default function HomeScreen({ navigation }) {
       categories.map((cat) => ({
         ...cat,
         active: cat.id === id,
-      })),
+      }))
     )
   }
 
   const handleSkillPress = (skill) => {
-    navigation.navigate("UserProfile", { userId: skill.user.id })
+    if (skill && skill.user && skill.user.id) {
+      navigation.navigate("UserProfile", { userId: skill.user.id })
+    }
   }
 
-  // Mock data for development
-  const mockSkills = [
-    {
-      id: "1",
-      skill: "JavaScript Programming",
-      category: "Tech",
-      user: {
-        id: "101",
-        name: "John Doe",
-        photoUrl: "https://via.placeholder.com/60",
-        rating: 4.8,
-        reviewCount: 24,
-      },
-    },
-    {
-      id: "2",
-      skill: "Guitar Lessons",
-      category: "Music",
-      user: {
-        id: "102",
-        name: "Sarah Smith",
-        photoUrl: "https://via.placeholder.com/60",
-        rating: 4.9,
-        reviewCount: 36,
-      },
-    },
-    {
-      id: "3",
-      skill: "French Language",
-      category: "Language",
-      user: {
-        id: "103",
-        name: "Michael Brown",
-        photoUrl: "https://via.placeholder.com/60",
-        rating: 4.7,
-        reviewCount: 18,
-      },
-    },
-    {
-      id: "4",
-      skill: "Digital Painting",
-      category: "Art",
-      user: {
-        id: "104",
-        name: "Emma Wilson",
-        photoUrl: "https://via.placeholder.com/60",
-        rating: 4.6,
-        reviewCount: 15,
-      },
-    },
-    {
-      id: "5",
-      skill: "Yoga Instruction",
-      category: "Fitness",
-      user: {
-        id: "105",
-        name: "David Lee",
-        photoUrl: "https://via.placeholder.com/60",
-        rating: 4.9,
-        reviewCount: 42,
-      },
-    },
-  ]
-
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Discover Skills</Text>
-        <Text style={styles.subtitle}>Find people to learn from</Text>
-      </View>
-
-      <View style={styles.searchContainer}>
-        <Search size={20} color="#666" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search skills or tutors"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
-
-      <View style={styles.categoriesContainer}>
-        <FlatList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={categories}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[styles.categoryButton, item.active && styles.activeCategoryButton]}
-              onPress={() => handleCategoryPress(item.id)}
-            >
-              <Text style={[styles.categoryText, item.active && styles.activeCategoryText]}>{item.name}</Text>
-            </TouchableOpacity>
-          )}
-        />
-      </View>
-
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6366f1" />
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Discover Skills</Text>
+          <Text style={styles.subtitle}>Find people to learn from</Text>
         </View>
-      ) : (
-        <FlatList
-          data={mockSkills} // Use mockSkills for development, replace with filteredSkills when API is ready
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <SkillCard user={item.user} skill={item.skill} onPress={() => handleSkillPress(item)} />
-          )}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
-    </View>
+
+        <View style={styles.searchContainer}>
+          <Icon name="search" size={20} color="#666" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search skills or tutors"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+
+        <View style={styles.categoriesContainer}>
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={categories}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[styles.categoryButton, item.active && styles.activeCategoryButton]}
+                onPress={() => handleCategoryPress(item.id)}
+              >
+                <Text style={[styles.categoryText, item.active && styles.activeCategoryText]}>{item.name}</Text>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+
+        {loading && !refreshing ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#6366f1" />
+          </View>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={fetchSkills}>
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredSkills}
+            keyExtractor={(item) => (item.id ? item.id.toString() : Math.random().toString())}
+            renderItem={({ item }) => (
+              <SkillCard
+                user={item.user}
+                skill={item.skill}
+                allSkills={item.allSkills}
+                onPress={() => handleSkillPress(item)}
+              />
+            )}
+            contentContainerStyle={[styles.listContent, filteredSkills.length === 0 && styles.emptyListContent]}
+            showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#6366f1"]} />}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No skills found</Text>
+                <Text style={styles.emptySubText}>Pull down to refresh</Text>
+              </View>
+            }
+          />
+        )}
+      </View>
+    </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: "#f8f9fa",
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
+    paddingHorizontal: width * 0.05,
+    paddingTop: Platform.OS === 'ios' ? height * 0.04 : height * 0.02,
+    paddingBottom: height * 0.01,
   },
   title: {
-    fontSize: 24,
+    fontSize: width * 0.06,
     fontWeight: "bold",
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: width * 0.04,
     color: "#666",
-    marginTop: 5,
+    marginTop: height * 0.005,
   },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#fff",
-    borderRadius: 10,
-    marginHorizontal: 20,
-    marginVertical: 15,
-    paddingHorizontal: 15,
-    height: 50,
+    borderRadius: width * 0.025,
+    marginHorizontal: width * 0.05,
+    marginVertical: height * 0.018,
+    paddingHorizontal: width * 0.038,
+    height: height * 0.06,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -227,23 +253,23 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   searchIcon: {
-    marginRight: 10,
+    marginRight: width * 0.025,
   },
   searchInput: {
     flex: 1,
     height: "100%",
-    fontSize: 16,
+    fontSize: width * 0.04,
   },
   categoriesContainer: {
-    paddingHorizontal: 15,
-    marginBottom: 15,
+    paddingHorizontal: width * 0.038,
+    marginBottom: height * 0.018,
   },
   categoryButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: width * 0.04,
+    paddingVertical: height * 0.01,
+    borderRadius: width * 0.05,
     backgroundColor: "#fff",
-    marginHorizontal: 5,
+    marginHorizontal: width * 0.013,
     borderWidth: 1,
     borderColor: "#ddd",
   },
@@ -252,7 +278,7 @@ const styles = StyleSheet.create({
     borderColor: "#6366f1",
   },
   categoryText: {
-    fontSize: 14,
+    fontSize: width * 0.035,
     color: "#666",
   },
   activeCategoryText: {
@@ -260,11 +286,57 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   listContent: {
-    padding: 20,
+    padding: width * 0.05,
+    flexGrow: 1,
+  },
+  emptyListContent: {
+    flexGrow: 1,
+    justifyContent: "center",
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: width * 0.05,
+  },
+  errorText: {
+    fontSize: width * 0.04,
+    color: "#ef4444",
+    textAlign: "center",
+    marginBottom: height * 0.025,
+  },
+  retryButton: {
+    backgroundColor: "#6366f1",
+    paddingVertical: height * 0.013,
+    paddingHorizontal: width * 0.05,
+    borderRadius: width * 0.02,
+  },
+  retryButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: width * 0.038,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: width * 0.05,
+  },
+  emptyText: {
+    fontSize: width * 0.045,
+    fontWeight: "bold",
+    color: "#666",
+    textAlign: "center",
+  },
+  emptySubText: {
+    fontSize: width * 0.035,
+    color: "#999",
+    marginTop: height * 0.01,
+    textAlign: "center",
   },
 })

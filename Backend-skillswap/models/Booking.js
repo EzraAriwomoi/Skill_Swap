@@ -1,15 +1,15 @@
-import mongoose from 'mongoose';
+const mongoose = require("mongoose")
 
 const bookingSchema = new mongoose.Schema(
   {
-    studentId: {
+    student: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
-    tutorId: {
+    teacher: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
     skill: {
@@ -23,22 +23,19 @@ const bookingSchema = new mongoose.Schema(
     duration: {
       type: Number,
       required: true,
+      default: 60, // minutes
     },
     status: {
       type: String,
-      enum: ['pending', 'accepted', 'declined', 'completed'],
-      default: 'pending',
+      enum: ["pending", "accepted", "declined", "completed", "cancelled"],
+      default: "pending",
     },
     notes: {
       type: String,
-      default: '',
+      default: "",
     },
   },
-  {
-    timestamps: true,
-  }
-);
+  { timestamps: true },
+)
 
-const Booking = mongoose.model('Booking', bookingSchema);
-
-export default Booking;
+module.exports = mongoose.model("Booking", bookingSchema)

@@ -1,25 +1,66 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from "react-native"
 import { Calendar, Clock } from "lucide-react-native"
+import api from "../services/api"
 
 export default function CreateBookingScreen({ route, navigation }) {
   const { userId, skillName } = route.params
   const [selectedDate, setSelectedDate] = useState(null)
   const [selectedTime, setSelectedTime] = useState(null)
-  const [loading, setLoading] = useState(false)
+  const [availableDates, setAvailableDates] = useState([])
+  const [availableTimes, setAvailableTimes] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState(null)
 
-  // Mock available dates (in a real app, you'd fetch these from the API)
-  const availableDates = [
-    new Date(Date.now() + 86400000), // tomorrow
-    new Date(Date.now() + 86400000 * 2), // day after tomorrow
-    new Date(Date.now() + 86400000 * 3),
-    new Date(Date.now() + 86400000 * 5),
-  ]
+  useEffect(() => {
+    fetchAvailability()
+  }, [userId])
 
-  // Mock available times
-  const availableTimes = ["09:00", "11:00", "14:00", "16:00", "18:00"]
+  useEffect(() => {
+    if (selectedDate) {
+      fetchAvailableTimes()
+    }
+  }, [selectedDate])
+
+  const fetchAvailability = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const response = await api.get(`/users/${userId}/availability`)
+      setAvailableDates(response.data.availableDates.map((date) => new Date(date)))
+    } catch (error) {
+      console.log("Error fetching availability", error)
+      setError("Failed to load availability. Please try again.")
+
+      // Fallback to some default dates for development
+      const defaultDates = []
+      for (let i = 1; i <= 7; i++) {
+        defaultDates.push(new Date(Date.now() + 86400000 * i))
+      }
+      setAvailableDates(defaultDates)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchAvailableTimes = async () => {
+    if (!selectedDate) return
+
+    try {
+      setAvailableTimes([]) // Clear previous times
+      const dateString = selectedDate.toISOString().split("T")[0]
+      const response = await api.get(`/users/${userId}/availability/${dateString}`)
+      setAvailableTimes(response.data.availableTimes)
+    } catch (error) {
+      console.log("Error fetching available times", error)
+
+      // Fallback to some default times for development
+      setAvailableTimes(["09:00", "11:00", "14:00", "16:00", "18:00"])
+    }
+  }
 
   const formatDate = (date) => {
     return date.toLocaleDateString("en-US", {
@@ -35,19 +76,17 @@ export default function CreateBookingScreen({ route, navigation }) {
       return
     }
 
-    setLoading(true)
+    setSubmitting(true)
 
     try {
-      // In a real app, you'd make an API call here
-      // const response = await api.post("/bookings", {
-      //   teacherId: userId,
-      //   skill: skillName,
-      //   dateTime: new Date(`${selectedDate.toDateString()} ${selectedTime}`),
-      //   duration: 60, // default duration in minutes
-      // })
+      const dateTime = new Date(`${selectedDate.toISOString().split("T")[0]}T${selectedTime}:00`)
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const response = await api.post("/bookings", {
+        teacherId: userId,
+        skill: skillName,
+        dateTime: dateTime.toISOString(),
+        duration: 60, // default duration in minutes
+      })
 
       Alert.alert(
         "Booking Requested",
@@ -58,8 +97,27 @@ export default function CreateBookingScreen({ route, navigation }) {
       console.log("Error creating booking", error)
       Alert.alert("Error", "Failed to create booking. Please try again.")
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
+  }
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#6366f1" />
+      </View>
+    )
+  }
+
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchAvailability}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    )
   }
 
   return (
@@ -81,7 +139,10 @@ export default function CreateBookingScreen({ route, navigation }) {
                 styles.dateItem,
                 selectedDate && date.toDateString() === selectedDate.toDateString() && styles.selectedItem,
               ]}
-              onPress={() => setSelectedDate(date)}
+              onPress={() => {
+                setSelectedDate(date)
+                setSelectedTime(null) // Reset selected time when date changes
+              }}
             >
               <Text
                 style={[
@@ -96,29 +157,35 @@ export default function CreateBookingScreen({ route, navigation }) {
         </ScrollView>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>
-          <Clock size={18} color="#333" style={styles.icon} /> Available Times
-        </Text>
-        <View style={styles.timesContainer}>
-          {availableTimes.map((time, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[styles.timeItem, selectedTime === time && styles.selectedItem]}
-              onPress={() => setSelectedTime(time)}
-            >
-              <Text style={[styles.timeText, selectedTime === time && styles.selectedText]}>{time}</Text>
-            </TouchableOpacity>
-          ))}
+      {selectedDate && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            <Clock size={18} color="#333" style={styles.icon} /> Available Times
+          </Text>
+          <View style={styles.timesContainer}>
+            {availableTimes.length > 0 ? (
+              availableTimes.map((time, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[styles.timeItem, selectedTime === time && styles.selectedItem]}
+                  onPress={() => setSelectedTime(time)}
+                >
+                  <Text style={[styles.timeText, selectedTime === time && styles.selectedText]}>{time}</Text>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <Text style={styles.noTimesText}>No available times for this date</Text>
+            )}
+          </View>
         </View>
-      </View>
+      )}
 
       <TouchableOpacity
-        style={styles.bookButton}
+        style={[styles.bookButton, (!selectedDate || !selectedTime || submitting) && styles.disabledButton]}
         onPress={handleBooking}
-        disabled={!selectedDate || !selectedTime || loading}
+        disabled={!selectedDate || !selectedTime || submitting}
       >
-        {loading ? (
+        {submitting ? (
           <ActivityIndicator color="#fff" size="small" />
         ) : (
           <Text style={styles.bookButtonText}>Request Booking</Text>
@@ -132,6 +199,33 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f8f9fa",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#ef4444",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: "#6366f1",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
   },
   header: {
     padding: 20,
@@ -209,6 +303,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#333",
   },
+  noTimesText: {
+    fontSize: 16,
+    color: "#666",
+    fontStyle: "italic",
+    textAlign: "center",
+    padding: 20,
+  },
   bookButton: {
     backgroundColor: "#10b981",
     paddingVertical: 15,
@@ -217,6 +318,9 @@ const styles = StyleSheet.create({
     marginTop: 30,
     marginBottom: 30,
     alignItems: "center",
+  },
+  disabledButton: {
+    backgroundColor: "#9ca3af",
   },
   bookButtonText: {
     color: "#fff",

@@ -9,79 +9,105 @@ export const AuthContext = createContext()
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [authError, setAuthError] = useState(null)
 
   useEffect(() => {
-    // Check if user is logged in
-    const loadStoredUser = async () => {
-      try {
-        const storedUser = await AsyncStorage.getItem("user")
-        const token = await AsyncStorage.getItem("token")
-
-        if (storedUser && token) {
-          api.defaults.headers.common["Authorization"] = `Bearer ${token}`
-          setUser(JSON.parse(storedUser))
-        }
-      } catch (error) {
-        console.log("Error loading stored user", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     loadStoredUser()
   }, [])
 
+  const loadStoredUser = async () => {
+    try {
+      setLoading(true)
+      const storedUser = await AsyncStorage.getItem("user")
+      const token = await AsyncStorage.getItem("token")
+
+      if (storedUser && token) {
+        // Validate token with the server
+        try {
+          const response = await api.get("/auth/validate-token")
+          if (response.status === 200) {
+            setUser(JSON.parse(storedUser))
+          } else {
+            // Token invalid, clear storage
+            await AsyncStorage.removeItem("user")
+            await AsyncStorage.removeItem("token")
+          }
+        } catch (error) {
+          console.log("Token validation error:", error)
+          // If server is unreachable, still use stored user for offline functionality
+          setUser(JSON.parse(storedUser))
+        }
+      }
+    } catch (error) {
+      console.log("Error loading stored user", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const login = async (email, password) => {
     try {
+      setAuthError(null)
       const response = await api.post("/auth/login", { email, password })
       const { user, token } = response.data
 
+      // Store user and token
       await AsyncStorage.setItem("user", JSON.stringify(user))
       await AsyncStorage.setItem("token", token)
-
-      api.defaults.headers.common["Authorization"] = `Bearer ${token}`
 
       setUser(user)
       return { success: true }
     } catch (error) {
+      const errorMessage = error.response?.data?.message || "Login failed. Please check your credentials."
+      setAuthError(errorMessage)
       return {
         success: false,
-        message: error.response?.data?.message || "Login failed",
+        message: errorMessage,
       }
     }
   }
 
   const signup = async (name, email, password) => {
     try {
+      setAuthError(null)
       const response = await api.post("/auth/signup", { name, email, password })
       const { user, token } = response.data
 
+      // Store user and token
       await AsyncStorage.setItem("user", JSON.stringify(user))
       await AsyncStorage.setItem("token", token)
-      api.defaults.headers.common["Authorization"] = `Bearer ${token}`
 
       setUser(user)
       return { success: true }
     } catch (error) {
+      const errorMessage = error.response?.data?.message || "Signup failed. Please try again."
+      setAuthError(errorMessage)
       return {
         success: false,
-        message: error.response?.data?.message || "Signup failed",
+        message: errorMessage,
       }
     }
   }
 
   const logout = async () => {
     try {
+      // Call logout endpoint if your API has one
+      try {
+        await api.post("/auth/logout")
+      } catch (error) {
+        // Continue with local logout even if API call fails
+        console.log("Logout API error:", error)
+      }
+
       // Remove stored user and token
       await AsyncStorage.removeItem("user")
       await AsyncStorage.removeItem("token")
 
-      // Remove token from API calls
-      delete api.defaults.headers.common["Authorization"]
-
       setUser(null)
+      return { success: true }
     } catch (error) {
       console.log("Error logging out", error)
+      return { success: false, message: "Logout failed" }
     }
   }
 
@@ -108,6 +134,7 @@ export const AuthProvider = ({ children }) => {
       value={{
         user,
         loading,
+        authError,
         login,
         signup,
         logout,

@@ -1,19 +1,31 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native"
-import { Star } from "lucide-react-native"
+import Feather from "react-native-vector-icons/Feather"
 
-export default function SkillCard({ user, skill, onPress }) {
+export default function SkillCard({ user, skill, allSkills = [], onPress }) {
+  if (!user) {
+    return null
+  }
+
+  const skillsText = allSkills && allSkills.length > 0 ? allSkills.join(", ") : skill || "Unnamed Skill"
+
   return (
     <TouchableOpacity style={styles.card} onPress={onPress}>
-      <Image source={{ uri: user.photoUrl || "https://via.placeholder.com/60" }} style={styles.avatar} />
+      <Image
+        source={{ uri: user.photoUrl || "https://via.placeholder.com/60" }}
+        style={styles.avatar}
+        defaultSource={require("../assets/default-avatar.png")}
+      />
 
       <View style={styles.content}>
-        <Text style={styles.name}>{user.name}</Text>
-        <Text style={styles.skill}>{skill}</Text>
+        <Text style={styles.name}>{user.name || "Unknown User"}</Text>
+        <Text style={styles.skill} numberOfLines={2}>
+          {skillsText}
+        </Text>
 
         <View style={styles.ratingContainer}>
-          <Star size={16} color="#FFD700" fill="#FFD700" />
-          <Text style={styles.rating}>{user.rating.toFixed(1)}</Text>
-          <Text style={styles.reviewCount}>({user.reviewCount} reviews)</Text>
+          <Feather name="star" size={16} color="#FFD700" />
+          <Text style={styles.rating}>{user.rating ? user.rating.toFixed(1) : "New"}</Text>
+          <Text style={styles.reviewCount}>({user.reviewCount || 0} reviews)</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -51,7 +63,8 @@ const styles = StyleSheet.create({
   skill: {
     fontSize: 14,
     color: "#6366f1",
-    marginBottom: 6,
+    marginBottom: 8,
+    lineHeight: 20,
   },
   ratingContainer: {
     flexDirection: "row",

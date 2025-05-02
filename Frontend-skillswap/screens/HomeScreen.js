@@ -13,6 +13,7 @@ import {
   Dimensions,
   SafeAreaView,
   Platform,
+  StatusBar,
 } from "react-native"
 import Icon from "react-native-vector-icons/Feather"
 import SkillCard from "../components/SkillCard"
@@ -153,6 +154,7 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <View style={styles.androidSafeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Discover Skills</Text>
@@ -225,6 +227,7 @@ export default function HomeScreen({ navigation }) {
             }
           />
         )}
+        </View>
       </View>
     </SafeAreaView>
   )
@@ -233,6 +236,10 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+  },
+  androidSafeArea: {
+    flex: 1,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   container: {
     flex: 1,

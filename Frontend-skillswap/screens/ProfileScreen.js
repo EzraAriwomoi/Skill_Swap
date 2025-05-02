@@ -14,6 +14,7 @@ import {
   Dimensions,
   SafeAreaView,
   Platform,
+  StatusBar,
 } from "react-native"
 import { AuthContext } from "../context/AuthContext"
 import { MoreVertical, X } from "lucide-react-native"
@@ -327,6 +328,7 @@ const styles = StyleSheet.create({
     paddingVertical: height * 0.02,
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + height * 0.02 : height * 0.02,
   },
   headerTitle: {
     fontSize: width * 0.05,

@@ -49,12 +49,21 @@ export default function HomeScreen({ navigation }) {
     filterSkills()
   }, [searchQuery, categories, skills])
 
+  useEffect(() => {
+    if (currentUser) {
+      fetchSkills()
+    }
+  }, [currentUser])
+
   const fetchSkills = async () => {
     try {
       setLoading(true)
       setError(null)
   
-      const response = await api.get(`/skills?excludeUserId=${currentUser?.id}`)
+      // Ensure currentUser._id is passed correctly to the API
+      const response = await api.get("/skills", {
+        params: { excludeUserId: currentUser._id }
+      })      
   
       if (!response.data || !Array.isArray(response.data)) {
         throw new Error("Invalid data format received from server")
@@ -62,18 +71,18 @@ export default function HomeScreen({ navigation }) {
   
       // Group skills by user
       const userMap = new Map()
-      filteredData.forEach((skill) => {
+      response.data.forEach((skill) => {
         if (!skill.user || !skill.user.id) return
   
         if (!userMap.has(skill.user.id)) {
           userMap.set(skill.user.id, {
             ...skill,
             id: skill.id || `skill-${Math.random().toString(36).substr(2, 9)}`,
-            allSkills: [skill.skill],
-          })
+            allSkills: [{ name: skill.skill, category: skill.category }],
+          })          
         } else {
           if (skill.skill) {
-            userMap.get(skill.user.id).allSkills.push(skill.skill)
+            userMap.get(skill.user.id).allSkills.push({ name: skill.skill, category: skill.category })
           }
         }
       })
@@ -83,22 +92,19 @@ export default function HomeScreen({ navigation }) {
       setFilteredSkills(uniqueUserSkills)
     } catch (error) {
       console.log("Error fetching skills", error)
-    
-      // Only show error if it's a true failure (e.g., server error)
+  
       if (error.response || error.message.includes("Network")) {
         setError("Something went wrong. Please try again.")
       } else {
-        // Friendly fallback
         setError(null)
         setSkills([])
         setFilteredSkills([])
       }
-    }
-     finally {
+    } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }  
+  }   
 
   const onRefresh = () => {
     setRefreshing(true)
@@ -113,14 +119,18 @@ export default function HomeScreen({ navigation }) {
         (item) =>
           (item.skill && item.skill.toLowerCase().includes(searchQuery.toLowerCase())) ||
           (item.allSkills &&
-            item.allSkills.some((skill) => skill && skill.toLowerCase().includes(searchQuery.toLowerCase()))) ||
+            item.allSkills.some((skill) => skill.name && skill.name.toLowerCase().includes(searchQuery.toLowerCase()))) ||
           (item.user && item.user.name && item.user.name.toLowerCase().includes(searchQuery.toLowerCase()))
       )
     }
 
     const activeCategory = categories.find((cat) => cat.active)
     if (activeCategory && activeCategory.name !== "All") {
-      filtered = filtered.filter((item) => item.category === activeCategory.name)
+      filtered = filtered.filter(
+        (item) =>
+          item.allSkills &&
+          item.allSkills.some((skill) => skill.category === activeCategory.name)
+      )      
     }
 
     setFilteredSkills(filtered)
@@ -150,13 +160,18 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         <View style={styles.searchContainer}>
-          <Icon name="search" size={20} color="#666" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search skills or tutors"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
+        <Icon name="search" size={20} color="#999" style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search skills or tutors"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery("")}>
+            <Icon name="x" size={20} color="#999" style={styles.clearIcon} />
+          </TouchableOpacity>
+        )}
         </View>
 
         <View style={styles.categoriesContainer}>
@@ -260,6 +275,9 @@ const styles = StyleSheet.create({
     height: "100%",
     fontSize: width * 0.04,
   },
+  clearIcon: {
+    marginLeft: 10,
+  },  
   categoriesContainer: {
     paddingHorizontal: width * 0.038,
     marginBottom: height * 0.018,

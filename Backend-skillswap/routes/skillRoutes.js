@@ -74,10 +74,17 @@ const formatSkill = (skill) => {
   }
 }
 
-// Get all skills
+// Get all skills (optionally excluding skills from a specific user)
 router.get("/", async (req, res) => {
   try {
-    const skills = await Skill.find().populate("user", "name photoUrl rating reviewCount").lean()
+    const excludeUserId = req.query.excludeUserId
+
+    const filter = excludeUserId ? { user: { $ne: excludeUserId } } : {}
+
+    const skills = await Skill.find(filter)
+      .populate("user", "name photoUrl rating reviewCount")
+      .lean()
+
     const formattedSkills = skills.map(formatSkill)
     res.json(formattedSkills)
   } catch (error) {

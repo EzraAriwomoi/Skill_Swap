@@ -6,7 +6,9 @@ export default function SkillCard({ user, skill, allSkills = [], onPress }) {
     return null
   }
 
-  const skillsText = allSkills && allSkills.length > 0 ? allSkills.join(", ") : skill || "Unnamed Skill"
+  const skillsText = allSkills && allSkills.length > 0
+  ? allSkills.map(s => s.name).join(", ")
+  : skill || "Unnamed Skill"
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress}>

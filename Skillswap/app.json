@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Frontend-skillswap",
-    "slug": "Frontend-skillswap",
+    "name": "SkillSwap",
+    "slug": "Skillswap",
     "version": "1.0.0",
     "sdkVersion": "53.0.0",
     "orientation": "portrait",

@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useContext } from "react"
+import { useState, useEffect, useContext } from "react";
 import {
   View,
   Text,
@@ -11,50 +11,50 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-} from "react-native"
-import { Star, MessageCircle, Calendar } from "lucide-react-native"
-import { AuthContext } from "../context/AuthContext"
-import api from "../services/api"
+} from "react-native";
+import { Star, MessageCircle, Calendar } from "lucide-react-native";
+import { AuthContext } from "../context/AuthContext";
+import api from "../services/api";
 
 export default function UserProfile({ route, navigation }) {
-  const { userId } = route.params
-  const { user: currentUser } = useContext(AuthContext)
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState(null)
+  const { userId } = route.params;
+  const { user: currentUser } = useContext(AuthContext);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchUserProfile()
-  }, [userId])
+    fetchUserProfile();
+  }, [userId]);
 
   const fetchUserProfile = async () => {
     try {
-      setLoading(true)
-      setError(null)
-      const response = await api.get(`/users/${userId}`)
-      setUser(response.data)
+      setLoading(true);
+      setError(null);
+      const response = await api.get(`/users/${userId}`);
+      setUser(response.data);
     } catch (error) {
-      console.log("Error fetching user profile", error)
-      setError("Failed to load user profile. Please try again.")
+      console.log("Error fetching user profile", error);
+      setError("Failed to load user profile. Please try again.");
     } finally {
-      setLoading(false)
-      setRefreshing(false)
+      setLoading(false);
+      setRefreshing(false);
     }
-  }
+  };
 
   const onRefresh = () => {
-    setRefreshing(true)
-    fetchUserProfile()
-  }
+    setRefreshing(true);
+    fetchUserProfile();
+  };
 
   const handleMessagePress = () => {
     if (!currentUser) {
       Alert.alert("Login Required", "You need to login to send messages", [
         { text: "Cancel", style: "cancel" },
         { text: "Login", onPress: () => navigation.navigate("Auth") },
-      ])
-      return
+      ]);
+      return;
     }
 
     // Navigate to the Messages tab first, then to the Chat screen
@@ -65,30 +65,30 @@ export default function UserProfile({ route, navigation }) {
         userName: user.name,
         userId: userId,
       },
-    })
-  }
+    });
+  };
 
   const handleBookingPress = () => {
     if (!currentUser) {
       Alert.alert("Login Required", "You need to login to book sessions", [
         { text: "Cancel", style: "cancel" },
         { text: "Login", onPress: () => navigation.navigate("Auth") },
-      ])
-      return
+      ]);
+      return;
     }
 
     navigation.navigate("CreateBooking", {
       userId,
       skillName: user.skillsOffered[0].skill,
-    })
-  }
+    });
+  };
 
   if (loading && !refreshing) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#6366f1" />
       </View>
-    )
+    );
   }
 
   if (error) {
@@ -99,22 +99,31 @@ export default function UserProfile({ route, navigation }) {
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
-    )
+    );
   }
 
   // Check if this is the current user's profile
-  const isOwnProfile = currentUser && user && currentUser.id === user._id
+  const isOwnProfile = currentUser && user && currentUser.id === user._id;
 
   return (
     <ScrollView
       style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#6366f1"]} />}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={["#6366f1"]}
+        />
+      }
     >
       <View style={styles.header}>
         <Image
-          source={{ uri: user.photoUrl }}
+          source={
+            user.photoUrl
+              ? { uri: user.photoUrl }
+              : require("../assets/default-avatar.png")
+          }
           style={styles.profileImage}
-          defaultSource={require("../assets/default-avatar.png")}
         />
         <Text style={styles.name}>{user.name}</Text>
         <View style={styles.ratingContainer}>
@@ -147,18 +156,24 @@ export default function UserProfile({ route, navigation }) {
       {/* Only show action buttons if NOT viewing own profile */}
       {!isOwnProfile && (
         <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.messageButton} onPress={handleMessagePress}>
+          <TouchableOpacity
+            style={styles.messageButton}
+            onPress={handleMessagePress}
+          >
             <MessageCircle size={20} color="#fff" />
             <Text style={styles.buttonText}>Message</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.bookButton} onPress={handleBookingPress}>
+          <TouchableOpacity
+            style={styles.bookButton}
+            onPress={handleBookingPress}
+          >
             <Calendar size={20} color="#fff" />
             <Text style={styles.buttonText}>Book Session</Text>
           </TouchableOpacity>
         </View>
       )}
     </ScrollView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -300,4 +315,4 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginLeft: 8,
   },
-})
+});

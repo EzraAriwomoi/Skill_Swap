@@ -4,6 +4,9 @@ const Skill = require("../models/Skill")
 const auth = require("../middleware/auth")
 
 const router = express.Router()
+const cloudinary = require("../utils/cloudinary");
+const upload = require("../middleware/multer");
+const streamifier = require("streamifier");
 
 // Get user profile
 router.get("/:id", async (req, res) => {
@@ -63,6 +66,42 @@ router.put("/profile", auth, async (req, res) => {
     res.status(500).json({ message: "Error updating profile" })
   }
 })
+
+// Upload user profile image to Cloudinary
+router.post("/upload-photo", auth, upload.single("image"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No image file provided" });
+    }
+
+    const uploadFromBuffer = (buffer) => {
+      return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: "skillswap_users", resource_type: "image" },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+          }
+        );
+        streamifier.createReadStream(buffer).pipe(stream);
+      });
+    };
+
+    const result = await uploadFromBuffer(req.file.buffer);
+
+    // Save to user
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { photoUrl: result.secure_url },
+      { new: true }
+    ).select("-password");
+
+    res.json({ message: "Image uploaded", photoUrl: user.photoUrl });
+  } catch (err) {
+    console.error("Image upload error:", err);
+    res.status(500).json({ message: "Server error uploading image" });
+  }
+});
 
 // Get user availability
 router.get("/:id/availability", async (req, res) => {

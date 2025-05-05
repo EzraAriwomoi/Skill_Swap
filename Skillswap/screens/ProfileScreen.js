@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState, useContext, useEffect } from "react"
+import { useState, useContext, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -15,26 +15,30 @@ import {
   SafeAreaView,
   Platform,
   StatusBar,
-} from "react-native"
-import { AuthContext } from "../context/AuthContext"
-import { MoreVertical, X } from "lucide-react-native"
-import { Menu, MenuItem } from "../components/Menu"
-import { categorizeSkill } from "../utils/skillCategories"
+  RefreshControl,
+} from "react-native";
+import { AuthContext } from "../context/AuthContext";
+import { MoreVertical, X, Camera } from "lucide-react-native";
+import { Menu, MenuItem } from "../components/Menu";
+import { categorizeSkill } from "../utils/skillCategories";
+import * as ImagePicker from "expo-image-picker";
+import api from "../services/api";
 
-const { width, height } = Dimensions.get("window")
+const { width, height } = Dimensions.get("window");
 
 export default function ProfileScreen({ navigation }) {
-  const { user, logout, updateProfile } = useContext(AuthContext)
-  const [isEditing, setIsEditing] = useState(false)
-  const [menuVisible, setMenuVisible] = useState(false)
-  const [name, setName] = useState("")
-  const [bio, setBio] = useState("")
-  const [skillsOffered, setSkillsOffered] = useState([])
-  const [skillsWanted, setSkillsWanted] = useState([])
-  const [newSkillOffered, setNewSkillOffered] = useState("")
-  const [newSkillWanted, setNewSkillWanted] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [originalData, setOriginalData] = useState({})
+  const { user, logout, updateProfile } = useContext(AuthContext);
+  const [isEditing, setIsEditing] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [name, setName] = useState("");
+  const [bio, setBio] = useState("");
+  const [skillsOffered, setSkillsOffered] = useState([]);
+  const [skillsWanted, setSkillsWanted] = useState([]);
+  const [newSkillOffered, setNewSkillOffered] = useState("");
+  const [newSkillWanted, setNewSkillWanted] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [originalData, setOriginalData] = useState({});
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -43,18 +47,52 @@ export default function ProfileScreen({ navigation }) {
         bio: user.bio || "",
         skillsOffered: user.skillsOffered || [],
         skillsWanted: user.skillsWanted || [],
-      }
+      };
 
-      setName(userData.name)
-      setBio(userData.bio)
-      setSkillsOffered(userData.skillsOffered)
-      setSkillsWanted(userData.skillsWanted)
-      setOriginalData(userData)
+      setName(userData.name);
+      setBio(userData.bio);
+      setSkillsOffered(userData.skillsOffered);
+      setSkillsWanted(userData.skillsWanted);
+      setOriginalData(userData);
     }
-  }, [user])
+  }, [user]);
+
+  const fetchUserProfile = useCallback(async () => {
+    setRefreshing(true);
+    setLoading(true);
+    try {
+      const response = await api.get(`/users/${user?._id}`);
+      if (response.data) {
+        const userData = {
+          name: response.data.name || "",
+          bio: response.data.bio || "",
+          skillsOffered: response.data.skillsOffered || [],
+          skillsWanted: response.data.skillsWanted || [],
+          photoUrl: response.data.photoUrl || null,
+        };
+        setName(userData.name);
+        setBio(userData.bio);
+        setSkillsOffered(userData.skillsOffered);
+        setSkillsWanted(userData.skillsWanted);
+        setOriginalData(userData);
+      } else {
+        Alert.alert("Error", "Failed to fetch profile data.");
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      Alert.alert("Error", "Something went wrong while fetching profile.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [api, user?._id]); // Update dependency array
+
+  const onRefresh = useCallback(() => {
+    fetchUserProfile();
+  }, [fetchUserProfile]);
 
   const handleSaveProfile = async () => {
-    setLoading(true)
+    setLoading(true);
 
     // Auto-categorize skills
     const categorizedSkillsOffered = skillsOffered.map((skillObj) => {
@@ -62,40 +100,117 @@ export default function ProfileScreen({ navigation }) {
         return {
           ...skillObj,
           category: categorizeSkill(skillObj.skill),
-        }
+        };
       }
-      return skillObj
-    })
+      return skillObj;
+    });
 
     const result = await updateProfile({
       name,
       bio,
       skillsOffered: categorizedSkillsOffered,
       skillsWanted,
-    })
-    setLoading(false)
+    });
+    setLoading(false);
 
     if (result.success) {
-      setIsEditing(false)
+      setIsEditing(false);
     } else {
-      Alert.alert("Error", result.message)
+      Alert.alert("Error", result.message);
     }
-  }
+  };
+
+  const handleImageUpload = async () => {
+    const photoUrl = await uploadProfileImage();
+    if (photoUrl) {
+      setUser((prevUser) => ({
+        ...prevUser,
+        photoUrl,
+      }));
+    }
+  };
+
+  const uploadProfileImage = async () => {
+    const permissionResult =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      alert("Permission to access camera roll is required!");
+      return;
+    }
+
+    const pickerResult = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      base64: false,
+    });
+
+    if (pickerResult.cancelled) return;
+
+    const localUri = pickerResult.assets[0].uri;
+    const filename = localUri.split("/").pop();
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match ? `image/${match[1]}` : `image`;
+
+    const formData = new FormData();
+    formData.append("image", {
+      uri: localUri,
+      name: filename,
+      type,
+    });
+
+    setLoading(true); // Start loading before upload
+
+    try {
+      const res = await api.post("/users/upload-photo", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      console.log("Uploaded image URL:", res.data.photoUrl);
+      const newPhotoUrl = res.data.photoUrl; // Update the user profile with the new photo URL
+
+      const updateResult = await updateProfile({ photoUrl: newPhotoUrl });
+      setLoading(false); // End loading after update
+
+      // if (updateResult.success) {
+      //   // Optionally, update the local user context immediately
+      //   // This will trigger a re-render with the new image-  
+      //   // setUser((prevUser) => ({ ...prevUser, photoUrl: newPhotoUrl }));
+      //   Alert.alert("Success", "Profile picture updated!");
+      // } else {
+      //   Alert.alert(
+      //     "Error",
+      //     updateResult.message || "Failed to update profile picture."
+      //   );
+      // }
+
+      return newPhotoUrl;
+    } catch (error) {
+      setLoading(false); // Ensure loading is off on error
+      console.error("Upload error:", error);
+      Alert.alert(
+        "Failed to upload image",
+        error.message || "Something went wrong during upload."
+      );
+      return null;
+    }
+  };
 
   const handleCancelEdit = () => {
     // Restore original data
-    setName(originalData.name)
-    setBio(originalData.bio)
-    setSkillsOffered(originalData.skillsOffered)
-    setSkillsWanted(originalData.skillsWanted)
-    setIsEditing(false)
-  }
+    setName(originalData.name);
+    setBio(originalData.bio);
+    setSkillsOffered(originalData.skillsOffered);
+    setSkillsWanted(originalData.skillsWanted);
+    setIsEditing(false);
+  };
 
   const addSkillOffered = () => {
-    if (newSkillOffered.trim() === "") return
+    if (newSkillOffered.trim() === "") return;
 
     // Auto-categorize the skill
-    const category = categorizeSkill(newSkillOffered)
+    const category = categorizeSkill(newSkillOffered);
 
     setSkillsOffered([
       ...skillsOffered,
@@ -103,42 +218,42 @@ export default function ProfileScreen({ navigation }) {
         skill: newSkillOffered,
         category,
       },
-    ])
-    setNewSkillOffered("")
-  }
+    ]);
+    setNewSkillOffered("");
+  };
 
   const addSkillWanted = () => {
     if (newSkillWanted.trim() !== "") {
-      setSkillsWanted([...skillsWanted, newSkillWanted])
-      setNewSkillWanted("")
+      setSkillsWanted([...skillsWanted, newSkillWanted]);
+      setNewSkillWanted("");
     }
-  }
+  };
 
   const removeSkillOffered = (index) => {
-    const updatedSkills = [...skillsOffered]
-    updatedSkills.splice(index, 1)
-    setSkillsOffered(updatedSkills)
-  }
+    const updatedSkills = [...skillsOffered];
+    updatedSkills.splice(index, 1);
+    setSkillsOffered(updatedSkills);
+  };
 
   const removeSkillWanted = (index) => {
-    const updatedSkills = [...skillsWanted]
-    updatedSkills.splice(index, 1)
-    setSkillsWanted(updatedSkills)
-  }
+    const updatedSkills = [...skillsWanted];
+    updatedSkills.splice(index, 1);
+    setSkillsWanted(updatedSkills);
+  };
 
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
       { text: "Cancel", style: "cancel" },
       { text: "Logout", onPress: logout, style: "destructive" },
-    ])
-  }
+    ]);
+  };
 
   if (!user) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#6366f1" />
       </View>
-    )
+    );
   }
 
   return (
@@ -146,54 +261,94 @@ export default function ProfileScreen({ navigation }) {
       <View style={styles.container}>
         <View style={styles.headerContainer}>
           <Text style={styles.headerTitle}>Profile</Text>
-          <TouchableOpacity onPress={() => setMenuVisible(true)} style={styles.menuButton}>
+          <TouchableOpacity
+            onPress={() => setMenuVisible(true)}
+            style={styles.menuButton}
+          >
             <MoreVertical size={24} color="#333" />
           </TouchableOpacity>
-          <Menu visible={menuVisible} onDismiss={() => setMenuVisible(false)} anchor={{ x: 0, y: 0 }} style={styles.menu}>
+          <Menu
+            visible={menuVisible}
+            onDismiss={() => setMenuVisible(false)}
+            anchor={{ x: 0, y: 0 }}
+            style={styles.menu}
+          >
             <MenuItem
               onPress={() => {
-                setMenuVisible(false)
-                setIsEditing(true)
+                setMenuVisible(false);
+                setIsEditing(true);
               }}
               title="Edit Profile"
             />
             <MenuItem
               onPress={() => {
-                setMenuVisible(false)
-                handleLogout()
+                setMenuVisible(false);
+                handleLogout();
               }}
               title="Logout"
             />
             <MenuItem
               onPress={() => {
-                setMenuVisible(false)
-                navigation.navigate("Settings")
+                setMenuVisible(false);
+                navigation.navigate("Settings");
               }}
               title="Settings"
             />
           </Menu>
         </View>
 
-        <ScrollView style={styles.scrollContainer}>
-          <View style={styles.header}>
-            <Image
-              source={{ uri: user.photoUrl || "https://via.placeholder.com/150" }}
-              style={styles.profileImage}
-              defaultSource={require("../assets/default-avatar.png")}
+        <ScrollView
+          style={styles.scrollContainer}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={["#6366f1"]}
             />
+          }
+        >
+          <View style={styles.header}>
+            <View style={{ position: "relative", alignItems: "center" }}>
+              <Image
+                source={
+                  user.photoUrl
+                    ? { uri: user.photoUrl }
+                    : require("../assets/default-avatar.png")
+                }
+                style={styles.profileImage}
+              />
+              <TouchableOpacity
+                style={styles.cameraIconContainer}
+                onPress={handleImageUpload}
+              >
+                <Camera size={18} color="white" />
+              </TouchableOpacity>
+            </View>
             {isEditing ? (
-              <TextInput style={styles.nameInput} value={name} onChangeText={setName} placeholder="Your Name" />
+              <TextInput
+                style={styles.nameInput}
+                value={name}
+                onChangeText={setName}
+                placeholder="Your Name"
+              />
             ) : (
               <Text style={styles.name}>{user.name}</Text>
             )}
 
             {isEditing && (
               <View style={styles.editActionButtons}>
-                <TouchableOpacity style={styles.cancelButton} onPress={handleCancelEdit}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={handleCancelEdit}
+                >
                   <X size={width * 0.04} color="#fff" />
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile} disabled={loading}>
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={handleSaveProfile}
+                  disabled={loading}
+                >
                   {loading ? (
                     <ActivityIndicator color="#fff" size="small" />
                   ) : (
@@ -229,7 +384,10 @@ export default function ProfileScreen({ navigation }) {
                   onChangeText={setNewSkillOffered}
                   placeholder="Add a skill..."
                 />
-                <TouchableOpacity style={styles.addButton} onPress={addSkillOffered}>
+                <TouchableOpacity
+                  style={styles.addButton}
+                  onPress={addSkillOffered}
+                >
                   <Text style={styles.addButtonText}>+</Text>
                 </TouchableOpacity>
               </View>
@@ -237,13 +395,23 @@ export default function ProfileScreen({ navigation }) {
             <View style={styles.skillsContainer}>
               {skillsOffered.length > 0 ? (
                 skillsOffered.map((skillObj, index) => (
-                  <View key={index} style={[styles.skillBadge, getCategoryStyle(skillObj.category)]}>
+                  <View
+                    key={index}
+                    style={[
+                      styles.skillBadge,
+                      getCategoryStyle(skillObj.category),
+                    ]}
+                  >
                     <Text style={styles.skillText}>{skillObj.skill}</Text>
                     {!isEditing && (
-                      <Text style={styles.categoryText}>{skillObj.category || categorizeSkill(skillObj.skill)}</Text>
+                      <Text style={styles.categoryText}>
+                        {skillObj.category || categorizeSkill(skillObj.skill)}
+                      </Text>
                     )}
                     {isEditing && (
-                      <TouchableOpacity onPress={() => removeSkillOffered(index)}>
+                      <TouchableOpacity
+                        onPress={() => removeSkillOffered(index)}
+                      >
                         <Text style={styles.removeSkill}>×</Text>
                       </TouchableOpacity>
                     )}
@@ -265,7 +433,10 @@ export default function ProfileScreen({ navigation }) {
                   onChangeText={setNewSkillWanted}
                   placeholder="Add a skill..."
                 />
-                <TouchableOpacity style={styles.addButton} onPress={addSkillWanted}>
+                <TouchableOpacity
+                  style={styles.addButton}
+                  onPress={addSkillWanted}
+                >
                   <Text style={styles.addButtonText}>+</Text>
                 </TouchableOpacity>
               </View>
@@ -276,7 +447,9 @@ export default function ProfileScreen({ navigation }) {
                   <View key={index} style={styles.skillBadge}>
                     <Text style={styles.skillText}>{skill}</Text>
                     {isEditing && (
-                      <TouchableOpacity onPress={() => removeSkillWanted(index)}>
+                      <TouchableOpacity
+                        onPress={() => removeSkillWanted(index)}
+                      >
                         <Text style={styles.removeSkill}>×</Text>
                       </TouchableOpacity>
                     )}
@@ -290,26 +463,26 @@ export default function ProfileScreen({ navigation }) {
         </ScrollView>
       </View>
     </SafeAreaView>
-  )
+  );
 }
 
 // Helper function to get style based on category
 const getCategoryStyle = (category) => {
   switch (category) {
     case "Tech":
-      return styles.techSkill
+      return styles.techSkill;
     case "Art":
-      return styles.artSkill
+      return styles.artSkill;
     case "Music":
-      return styles.musicSkill
+      return styles.musicSkill;
     case "Language":
-      return styles.languageSkill
+      return styles.languageSkill;
     case "Fitness":
-      return styles.fitnessSkill
+      return styles.fitnessSkill;
     default:
-      return styles.otherSkill
+      return styles.otherSkill;
   }
-}
+};
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -328,7 +501,10 @@ const styles = StyleSheet.create({
     paddingVertical: height * 0.02,
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + height * 0.02 : height * 0.02,
+    paddingTop:
+      Platform.OS === "android"
+        ? StatusBar.currentHeight + height * 0.02
+        : height * 0.02,
   },
   headerTitle: {
     fontSize: width * 0.05,
@@ -523,4 +699,17 @@ const styles = StyleSheet.create({
     color: "#999",
     fontStyle: "italic",
   },
-})
+  cameraIconContainer: {
+    position: "absolute",
+    bottom: height * 0.02,
+    left: width * 0.25 - 30,
+    backgroundColor: "#6366f1",
+    borderRadius: 20,
+    padding: 6,
+    borderWidth: 2,
+    borderColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1,
+  },
+});

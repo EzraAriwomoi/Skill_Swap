@@ -1,21 +1,25 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native"
-import Feather from "react-native-vector-icons/Feather"
+import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
+import Feather from "react-native-vector-icons/Feather";
 
 export default function SkillCard({ user, skill, allSkills = [], onPress }) {
   if (!user) {
-    return null
+    return null;
   }
 
-  const skillsText = allSkills && allSkills.length > 0
-  ? allSkills.map(s => s.name).join(", ")
-  : skill || "Unnamed Skill"
+  const skillsText =
+    allSkills && allSkills.length > 0
+      ? allSkills.map((s) => s.name).join(", ")
+      : skill || "Unnamed Skill";
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress}>
       <Image
-        source={{ uri: user.photoUrl || "https://via.placeholder.com/60" }}
+        source={
+          user.photoUrl
+            ? { uri: user.photoUrl }
+            : require("../assets/default-avatar.png")
+        }
         style={styles.avatar}
-        defaultSource={require("../assets/default-avatar.png")}
       />
 
       <View style={styles.content}>
@@ -26,12 +30,16 @@ export default function SkillCard({ user, skill, allSkills = [], onPress }) {
 
         <View style={styles.ratingContainer}>
           <Feather name="star" size={16} color="#FFD700" />
-          <Text style={styles.rating}>{user.rating ? user.rating.toFixed(1) : "New"}</Text>
-          <Text style={styles.reviewCount}>({user.reviewCount || 0} reviews)</Text>
+          <Text style={styles.rating}>
+            {user.rating ? user.rating.toFixed(1) : "New"}
+          </Text>
+          <Text style={styles.reviewCount}>
+            ({user.reviewCount || 0} reviews)
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -82,4 +90,4 @@ const styles = StyleSheet.create({
     color: "#666",
     marginLeft: 4,
   },
-})
+});

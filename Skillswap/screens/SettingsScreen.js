@@ -24,27 +24,27 @@ export default function SettingsScreen() {
 
         <View style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Bell size={20} color="#6366f1" />
+            <Bell size={20} color="#00acc1" />
             <Text style={styles.settingText}>Push Notifications</Text>
           </View>
           <Switch
             value={notifications}
             onValueChange={setNotifications}
             trackColor={{ false: "#d1d5db", true: "#c7d2fe" }}
-            thumbColor={notifications ? "#6366f1" : "#f4f3f4"}
+            thumbColor={notifications ? "#00acc1" : "#f4f3f4"}
           />
         </View>
 
         <View style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Moon size={20} color="#6366f1" />
+            <Moon size={20} color="#00acc1" />
             <Text style={styles.settingText}>Dark Mode</Text>
           </View>
           <Switch
             value={darkMode}
             onValueChange={setDarkMode}
             trackColor={{ false: "#d1d5db", true: "#c7d2fe" }}
-            thumbColor={darkMode ? "#6366f1" : "#f4f3f4"}
+            thumbColor={darkMode ? "#00acc1" : "#f4f3f4"}
           />
         </View>
       </View>
@@ -54,14 +54,14 @@ export default function SettingsScreen() {
 
         <TouchableOpacity style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <HelpCircle size={20} color="#6366f1" />
+            <HelpCircle size={20} color="#00acc1" />
             <Text style={styles.settingText}>Help Center</Text>
           </View>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Shield size={20} color="#6366f1" />
+            <Shield size={20} color="#00acc1" />
             <Text style={styles.settingText}>Privacy Policy</Text>
           </View>
         </TouchableOpacity>

@@ -26,6 +26,14 @@ import api from "../services/api";
 
 const { width, height } = Dimensions.get("window");
 
+const countryNameToCode = {
+  Kenya: "KE",
+  Uganda: "UG",
+  Tanzania: "TZ",
+  Nigeria: "NG",
+  // more will be displayed
+};
+
 export default function ProfileScreen({ navigation }) {
   const { user, logout, updateProfile } = useContext(AuthContext);
   const [isEditing, setIsEditing] = useState(false);
@@ -39,12 +47,16 @@ export default function ProfileScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [originalData, setOriginalData] = useState({});
   const [refreshing, setRefreshing] = useState(false);
+  const [location, setLocation] = useState("");
+  const [city, setCity] = useState("");
+  const [country, setCountry] = useState("");
 
   useEffect(() => {
     if (user) {
       const userData = {
         name: user.name || "",
         bio: user.bio || "",
+        location: user.location || "",
         skillsOffered: user.skillsOffered || [],
         skillsWanted: user.skillsWanted || [],
       };
@@ -54,6 +66,13 @@ export default function ProfileScreen({ navigation }) {
       setSkillsOffered(userData.skillsOffered);
       setSkillsWanted(userData.skillsWanted);
       setOriginalData(userData);
+      setLocation(userData.location);
+
+      const [parsedCity = "", parsedCountry = ""] = userData.location
+        .split(",")
+        .map((s) => s.trim());
+      setCity(parsedCity);
+      setCountry(parsedCountry);
     }
   }, [user]);
 
@@ -66,6 +85,7 @@ export default function ProfileScreen({ navigation }) {
         const userData = {
           name: response.data.name || "",
           bio: response.data.bio || "",
+          location: response.data.location || "",
           skillsOffered: response.data.skillsOffered || [],
           skillsWanted: response.data.skillsWanted || [],
           photoUrl: response.data.photoUrl || null,
@@ -75,6 +95,7 @@ export default function ProfileScreen({ navigation }) {
         setSkillsOffered(userData.skillsOffered);
         setSkillsWanted(userData.skillsWanted);
         setOriginalData(userData);
+        setLocation(userData.location);
       } else {
         Alert.alert("Error", "Failed to fetch profile data.");
       }
@@ -105,9 +126,12 @@ export default function ProfileScreen({ navigation }) {
       return skillObj;
     });
 
+    const combinedLocation = (city || country) ? `${city}, ${country}` : 'No location set';
+
     const result = await updateProfile({
       name,
       bio,
+      location: combinedLocation,
       skillsOffered: categorizedSkillsOffered,
       skillsWanted,
     });
@@ -175,7 +199,7 @@ export default function ProfileScreen({ navigation }) {
 
       // if (updateResult.success) {
       //   // Optionally, update the local user context immediately
-      //   // This will trigger a re-render with the new image-  
+      //   // This will trigger a re-render with the new image-
       //   // setUser((prevUser) => ({ ...prevUser, photoUrl: newPhotoUrl }));
       //   Alert.alert("Success", "Profile picture updated!");
       // } else {
@@ -198,7 +222,11 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const handleCancelEdit = () => {
-    // Restore original data
+    const [parsedCity = "", parsedCountry = ""] = originalData.location
+      .split(",")
+      .map((s) => s.trim());
+    setCity(parsedCity);
+    setCountry(parsedCountry);
     setName(originalData.name);
     setBio(originalData.bio);
     setSkillsOffered(originalData.skillsOffered);
@@ -241,6 +269,18 @@ export default function ProfileScreen({ navigation }) {
     setSkillsWanted(updatedSkills);
   };
 
+  const getFlagEmoji = (location) => {
+    const country = location.split(",").pop().trim();
+    const countryCode = countryNameToCode[country];
+    return countryCode
+      ? String.fromCodePoint(
+          ...[...countryCode.toUpperCase()].map(
+            (c) => 0x1f1e6 - 65 + c.charCodeAt()
+          )
+        )
+      : "";
+  };
+
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
       { text: "Cancel", style: "cancel" },
@@ -251,7 +291,7 @@ export default function ProfileScreen({ navigation }) {
   if (!user) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color="#00acc1" />
       </View>
     );
   }
@@ -303,7 +343,7 @@ export default function ProfileScreen({ navigation }) {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              colors={["#6366f1"]}
+              colors={["#00acc1"]}
             />
           }
         >
@@ -325,14 +365,35 @@ export default function ProfileScreen({ navigation }) {
               </TouchableOpacity>
             </View>
             {isEditing ? (
-              <TextInput
-                style={styles.nameInput}
-                value={name}
-                onChangeText={setName}
-                placeholder="Your Name"
-              />
+              <>
+                <TextInput
+                  style={styles.nameInput}
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Your Name"
+                />
+                <TextInput
+                  style={styles.nameInput}
+                  value={city}
+                  onChangeText={setCity}
+                  placeholder="Your City"
+                />
+                <TextInput
+                  style={styles.nameInput}
+                  value={country}
+                  onChangeText={setCountry}
+                  placeholder="Your Country"
+                />
+              </>
             ) : (
-              <Text style={styles.name}>{user.name}</Text>
+              <>
+                <Text style={styles.name}>{user.name}</Text>
+                <Text style={styles.locationText}>
+                  {location
+                    ? `${location} ${getFlagEmoji(location)}`
+                    : "No location set"}
+                </Text>
+              </>
             )}
 
             {isEditing && (
@@ -370,7 +431,7 @@ export default function ProfileScreen({ navigation }) {
                 multiline
               />
             ) : (
-              <Text style={styles.bioText}>{user.bio || "No bio yet."}</Text>
+              <Text style={styles.bioText}>{user.bio || "No bio yet"}</Text>
             )}
           </View>
 
@@ -418,7 +479,7 @@ export default function ProfileScreen({ navigation }) {
                   </View>
                 ))
               ) : (
-                <Text style={styles.noSkillsText}>No skills added yet.</Text>
+                <Text style={styles.noSkillsText}>No skills added yet</Text>
               )}
             </View>
           </View>
@@ -456,7 +517,7 @@ export default function ProfileScreen({ navigation }) {
                   </View>
                 ))
               ) : (
-                <Text style={styles.noSkillsText}>No skills added yet.</Text>
+                <Text style={styles.noSkillsText}>No skills added yet</Text>
               )}
             </View>
           </View>
@@ -550,7 +611,7 @@ const styles = StyleSheet.create({
     marginBottom: height * 0.01,
     textAlign: "center",
     borderBottomWidth: 1,
-    borderBottomColor: "#6366f1",
+    borderBottomColor: "#00acc1",
     paddingBottom: height * 0.005,
     width: "80%",
   },
@@ -559,7 +620,7 @@ const styles = StyleSheet.create({
     marginTop: height * 0.01,
   },
   saveButton: {
-    backgroundColor: "#6366f1",
+    backgroundColor: "#00acc1",
     paddingVertical: height * 0.01,
     paddingHorizontal: width * 0.03,
     borderRadius: width * 0.05,
@@ -607,7 +668,7 @@ const styles = StyleSheet.create({
   bioText: {
     fontSize: width * 0.04,
     lineHeight: height * 0.03,
-    color: "#555",
+    color: "#999",
   },
   bioInput: {
     fontSize: width * 0.04,
@@ -619,6 +680,10 @@ const styles = StyleSheet.create({
     padding: width * 0.025,
     minHeight: height * 0.12,
     textAlignVertical: "top",
+  },
+  locationText: {
+    fontSize: 14,
+    color: "#999",
   },
   addSkillContainer: {
     flexDirection: "row",
@@ -635,7 +700,7 @@ const styles = StyleSheet.create({
     fontSize: width * 0.04,
   },
   addButton: {
-    backgroundColor: "#6366f1",
+    backgroundColor: "#00acc1",
     width: height * 0.05,
     height: height * 0.05,
     borderRadius: height * 0.025,
@@ -703,7 +768,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: height * 0.02,
     left: width * 0.25 - 30,
-    backgroundColor: "#6366f1",
+    backgroundColor: "#00acc1",
     borderRadius: 20,
     padding: 6,
     borderWidth: 2,

@@ -144,7 +144,7 @@ export default function ChatScreen({ route }) {
   if (loading && messages.length === 0) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color="#00acc1" />
       </View>
     )
   }
@@ -187,7 +187,7 @@ export default function ChatScreen({ route }) {
                 {item.content}
               </Text>
               <View style={styles.messageFooter}>
-                {item.pending && <ActivityIndicator size="small" color={isCurrentUser ? "#fff" : "#6366f1"} />}
+                {item.pending && <ActivityIndicator size="small" color={isCurrentUser ? "#fff" : "#00acc1"} />}
                 {item.failed && <Text style={styles.failedText}>Tap to retry</Text>}
                 {!item.pending && !item.failed && <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>}
               </View>
@@ -199,7 +199,7 @@ export default function ChatScreen({ route }) {
         onEndReached={hasMore ? loadMoreMessages : null}
         onEndReachedThreshold={0.3}
         ListFooterComponent={
-          loadingMore ? <ActivityIndicator size="small" color="#6366f1" style={styles.loadingMore} /> : null
+          loadingMore ? <ActivityIndicator size="small" color="#00acc1" style={styles.loadingMore} /> : null
         }
       />
 
@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   retryButton: {
-    backgroundColor: "#6366f1",
+    backgroundColor: "#00acc1",
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
   },
   sentMessage: {
     alignSelf: "flex-end",
-    backgroundColor: "#6366f1",
+    backgroundColor: "#00acc1",
     borderBottomRightRadius: 4,
   },
   receivedMessage: {
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   sendButton: {
-    backgroundColor: "#6366f1",
+    backgroundColor: "#00acc1",
     width: 40,
     height: 40,
     borderRadius: 20,

@@ -62,7 +62,7 @@ export default function ChatListScreen({ navigation }) {
   if (loading && !refreshing) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color="#00acc1" />
       </View>
     )
   }
@@ -105,7 +105,7 @@ export default function ChatListScreen({ navigation }) {
           </TouchableOpacity>
         )}
         contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#6366f1"]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#00acc1"]} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No conversations yet</Text>
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   retryButton: {
-    backgroundColor: "#6366f1",
+    backgroundColor: "#00acc1",
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#6366f1",
+    backgroundColor: "#00acc1",
     marginLeft: 5,
   },
   emptyContainer: {

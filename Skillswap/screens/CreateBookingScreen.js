@@ -104,7 +104,7 @@ export default function CreateBookingScreen({ route, navigation }) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color="#00acc1" />
       </View>
     )
   }
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   retryButton: {
-    backgroundColor: "#6366f1",
+    backgroundColor: "#00acc1",
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   selectedItem: {
-    backgroundColor: "#6366f1",
+    backgroundColor: "#00acc1",
   },
   dateText: {
     fontSize: 16,

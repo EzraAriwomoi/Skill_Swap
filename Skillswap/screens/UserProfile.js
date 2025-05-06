@@ -86,7 +86,7 @@ export default function UserProfile({ route, navigation }) {
   if (loading && !refreshing) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color="#00acc1" />
       </View>
     );
   }
@@ -112,7 +112,7 @@ export default function UserProfile({ route, navigation }) {
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          colors={["#6366f1"]}
+          colors={["#00acc1"]}
         />
       }
     >
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   retryButton: {
-    backgroundColor: "#6366f1",
+    backgroundColor: "#00acc1",
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   skillBadge: {
-    backgroundColor: "#e0e7ff",
+    backgroundColor: "#e0f7fa",
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 20,
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   skillText: {
-    color: "#4f46e5",
+    color: "#00acc1",
     fontWeight: "500",
   },
   noSkillsText: {
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   },
   messageButton: {
     flex: 1,
-    backgroundColor: "#6366f1",
+    backgroundColor: "#00acc1",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

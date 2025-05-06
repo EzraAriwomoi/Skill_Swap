@@ -28,7 +28,7 @@ router.get("/:id", async (req, res) => {
 router.put("/profile", auth, async (req, res) => {
   try {
     const updates = req.body
-    const allowedUpdates = ["name", "bio", "skillsOffered", "skillsWanted", "photoUrl"]
+    const allowedUpdates = ["name", "bio", "skillsOffered", "skillsWanted", "photoUrl", "location"];
 
     // Filter out any fields that aren't allowed to be updated
     const filteredUpdates = Object.keys(updates)

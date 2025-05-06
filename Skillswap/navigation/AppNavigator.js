@@ -65,7 +65,7 @@ function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: "#6366f1",
+        tabBarActiveTintColor: "#00acc1",
         tabBarInactiveTintColor: "gray",
       }}
     >

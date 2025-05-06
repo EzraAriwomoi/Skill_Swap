@@ -14,6 +14,7 @@ export const getUserProfile = async (req, res) => {
         email: user.email,
         bio: user.bio,
         photoUrl: user.photoUrl,
+        location: user.location,
         skillsOffered: user.skillsOffered,
         skillsWanted: user.skillsWanted,
         rating: user.rating,
@@ -37,16 +38,16 @@ export const updateUserProfile = async (req, res) => {
       user.name = req.body.name || user.name;
       user.bio = req.body.bio || user.bio;
       user.photoUrl = req.body.photoUrl || user.photoUrl;
-      
+      user.location = req.body.location || user.location;
+
       if (req.body.skillsOffered) {
         user.skillsOffered = req.body.skillsOffered;
       }
-      
+
       if (req.body.skillsWanted) {
         user.skillsWanted = req.body.skillsWanted;
       }
 
-      // Only update password if it's provided
       if (req.body.password) {
         user.password = req.body.password;
       }
@@ -59,6 +60,7 @@ export const updateUserProfile = async (req, res) => {
         email: updatedUser.email,
         bio: updatedUser.bio,
         photoUrl: updatedUser.photoUrl,
+        location: updatedUser.location,
         skillsOffered: updatedUser.skillsOffered,
         skillsWanted: updatedUser.skillsWanted,
         rating: updatedUser.rating,

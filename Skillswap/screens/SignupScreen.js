@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "bold",
-    color: "#6366f1",
+    color: "#00acc1",
   },
   subtitle: {
     fontSize: 16,
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   button: {
-    backgroundColor: "#6366f1",
+    backgroundColor: "#00acc1",
     height: 50,
     borderRadius: 8,
     justifyContent: "center",
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     color: "#666",
   },
   loginLink: {
-    color: "#6366f1",
+    color: "#00acc1",
     fontWeight: "bold",
   },
 })

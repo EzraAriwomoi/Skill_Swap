@@ -177,7 +177,7 @@ export default function BookingScreen({ navigation }) {
 
       {loading && !refreshing ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6366f1" />
+          <ActivityIndicator size="large" color="#00acc1" />
         </View>
       ) : error ? (
         <View style={styles.errorContainer}>
@@ -192,7 +192,7 @@ export default function BookingScreen({ navigation }) {
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderBookingItem}
           contentContainerStyle={styles.bookingsList}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#6366f1"]} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#00acc1"]} />}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>No bookings found</Text>
@@ -223,14 +223,14 @@ const styles = StyleSheet.create({
   },
   activeTab: {
     borderBottomWidth: 2,
-    borderBottomColor: "#6366f1",
+    borderBottomColor: "#00acc1",
   },
   tabText: {
     fontSize: 16,
     color: "#666",
   },
   activeTabText: {
-    color: "#6366f1",
+    color: "#00acc1",
     fontWeight: "bold",
   },
   loadingContainer: {
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   retryButton: {
-    backgroundColor: "#6366f1",
+    backgroundColor: "#00acc1",
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,

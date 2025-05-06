@@ -21,6 +21,7 @@ import TutorCard from "../components/TutorCard";
 import api from "../services/api";
 import { useFocusEffect } from "@react-navigation/native";
 import { AuthContext } from "../context/AuthContext";
+import { LinearGradient } from "expo-linear-gradient";
 
 const { width, height } = Dimensions.get("window");
 
@@ -183,6 +184,10 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <LinearGradient
+        colors={["#00acc1", "rgba(0, 172, 193, 0)"]}
+        style={styles.gradientBackground}
+      />
       <View style={styles.androidSafeArea}>
         <View style={styles.container}>
           <View style={styles.header}>
@@ -298,14 +303,21 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    backgroundColor: "transparent",
   },
   androidSafeArea: {
     flex: 1,
     paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
   },
+  gradientBackground: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 200,
+  },
   container: {
     flex: 1,
-    // backgroundColor: "#f8f9fa",
   },
   header: {
     paddingHorizontal: width * 0.05,

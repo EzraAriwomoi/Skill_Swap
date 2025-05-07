@@ -331,11 +331,11 @@ export default function EditProfile({ navigation }) {
 
         <View style={styles.bottomButtonsContainer}>
           <TouchableOpacity
-            style={[styles.bottomButton, styles.cancelBottomButton]}
+            style={styles.bottomButton}
             onPress={() => navigation.goBack()}
           >
             <X size={width * 0.05} color="#fff" />
-            <Text style={styles.bottomButtonText}>Cancel</Text>
+            <Text style={styles.buttonText}>Cancel</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.bottomButton, styles.saveBottomButton]}
@@ -345,7 +345,7 @@ export default function EditProfile({ navigation }) {
             {loading ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
-              <Text style={styles.bottomButtonText}>Save</Text>
+              <Text style={styles.buttonText}>Save</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -551,27 +551,33 @@ const styles = StyleSheet.create({
   },
   bottomButtonsContainer: {
     flexDirection: "row",
-    justifyContent: "space-around",
-    padding: width * 0.05,
+    padding: 15,
+    marginTop: 15,
+    marginBottom: 30,
   },
   bottomButton: {
-    paddingVertical: height * 0.015,
-    paddingHorizontal: width * 0.05,
-    borderRadius: width * 0.04,
+    flex: 1,
+    backgroundColor: "#ef4444",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-  },
-  cancelBottomButton: {
-    backgroundColor: "#ef4444",
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginRight: 8,
   },
   saveBottomButton: {
+    flex: 1,
     backgroundColor: "#00acc1",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginLeft: 8,
   },
-  bottomButtonText: {
+  buttonText: {
     color: "#fff",
     fontWeight: "bold",
-    fontSize: width * 0.045,
-    marginLeft: width * 0.01,
+    marginLeft: 8,
   },
 });

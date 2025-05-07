@@ -28,10 +28,6 @@ export default function TutorCard({ onPress, tutor }) {
           <Text style={styles.tutorName}>
             {tutor.user?.name || "Unknown User"}
           </Text>
-          {/* <View style={styles.ratingContainer}>
-          <Star size={16} color="#ffc107" fill="#ffc107" />
-          <Text style={styles.rating}>{tutor.averageRating || "N/A"}</Text>
-        </View> */}
           <View style={styles.ratingContainer}>
             <Feather name="star" size={16} color="#ffc107" />
             <Text style={styles.rating}>
@@ -42,7 +38,7 @@ export default function TutorCard({ onPress, tutor }) {
             </Text>
           </View>
           <Text style={styles.tutorLocation}>
-            {tutor.user?.location?.trim() || ""}
+            {tutor.user?.location?.trim() || ""} {tutor.user?.flagEmoji || ""}
           </Text>
         </View>
       </View>

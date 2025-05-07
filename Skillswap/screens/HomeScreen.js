@@ -24,6 +24,27 @@ import { AuthContext } from "../context/AuthContext";
 import { LinearGradient } from "expo-linear-gradient";
 
 const { width, height } = Dimensions.get("window");
+const LIST_BOTTOM_SPACING = height * 0.05;
+
+const countryNameToCode = {
+  Kenya: "KE",
+  Uganda: "UG",
+  Tanzania: "TZ",
+  Nigeria: "NG",
+  // more will be displayed
+};
+
+const getFlagEmoji = (location) => {
+  const country = location.split(",").pop().trim();
+  const countryCode = countryNameToCode[country];
+  return countryCode
+    ? String.fromCodePoint(
+        ...[...countryCode.toUpperCase()].map(
+          (c) => 0x1f1e6 - 65 + c.charCodeAt()
+        )
+      )
+    : "";
+};
 
 export default function HomeScreen({ navigation }) {
   const { user: currentUser } = useContext(AuthContext);
@@ -93,13 +114,14 @@ export default function HomeScreen({ navigation }) {
               photoUrl: skill.user.photoUrl,
               bio: skill.user.bio,
               location: skill.user.location,
+              flagEmoji: getFlagEmoji(skill.user.location),
               rating: skill.user.rating,
               reviewCount: skill.user.reviewCount,
             },
-            id: userId, // Use userId as the ID for the tutor object
+            id: userId,
             allSkills: skill.skill
               ? [{ name: skill.skill, category: skill.category }]
-              : [], // Add the first skill if it exists
+              : [],
           });
         } else {
           if (skill.skill) {
@@ -123,7 +145,6 @@ export default function HomeScreen({ navigation }) {
         setFilteredSkills([]);
       }
     } finally {
-      // Closing brace for the catch block was missing
       setLoading(false);
       setRefreshing(false);
     }
@@ -277,6 +298,7 @@ export default function HomeScreen({ navigation }) {
               contentContainerStyle={[
                 styles.listContent,
                 filteredSkills.length === 0 && styles.emptyListContent,
+                styles.listBottomSpacing,
               ]}
               showsVerticalScrollIndicator={false}
               refreshControl={
@@ -492,29 +514,22 @@ const styles = StyleSheet.create({
     marginBottom: height * 0.015,
     lineHeight: height * 0.022,
   },
-  teachingSkillsContainer: {
+  skillsOfferedContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     marginTop: height * 0.01,
   },
-  teachingText: {
-    fontSize: width * 0.04,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: height * 0.008,
-  },
-  skillsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
   skillBadge: {
-    backgroundColor: "#e0f7fa",
+    backgroundColor: "#f0f4c3",
     paddingHorizontal: width * 0.025,
     paddingVertical: height * 0.007,
     borderRadius: width * 0.03,
     marginRight: width * 0.015,
+    marginBottom: height * 0.01,
   },
   skillText: {
     fontSize: width * 0.032,
-    color: "#00acc1",
+    color: "#558b2f",
   },
   moreSkillsBadge: {
     backgroundColor: "#dcedc8",
@@ -525,5 +540,8 @@ const styles = StyleSheet.create({
   moreSkillsText: {
     fontSize: width * 0.032,
     color: "#558b2f",
+  },
+  listBottomSpacing: {
+    paddingBottom: LIST_BOTTOM_SPACING,
   },
 });

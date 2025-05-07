@@ -18,8 +18,7 @@ import {
   RefreshControl,
 } from "react-native";
 import { AuthContext } from "../context/AuthContext";
-import { MoreVertical, X, Camera } from "lucide-react-native";
-import { Menu, MenuItem } from "../components/Menu";
+import { X, Camera } from "lucide-react-native";
 import { categorizeSkill } from "../utils/skillCategories";
 import * as ImagePicker from "expo-image-picker";
 import api from "../services/api";
@@ -126,7 +125,8 @@ export default function ProfileScreen({ navigation }) {
       return skillObj;
     });
 
-    const combinedLocation = (city || country) ? `${city}, ${country}` : 'No location set';
+    const combinedLocation =
+      city || country ? `${city}, ${country}` : "No location set";
 
     const result = await updateProfile({
       name,
@@ -299,7 +299,7 @@ export default function ProfileScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <View style={styles.headerContainer}>
+        {/* <View style={styles.headerContainer}>
           <Text style={styles.headerTitle}>Profile</Text>
           <TouchableOpacity
             onPress={() => setMenuVisible(true)}
@@ -335,7 +335,7 @@ export default function ProfileScreen({ navigation }) {
               title="Settings"
             />
           </Menu>
-        </View>
+        </View> */}
 
         <ScrollView
           style={styles.scrollContainer}
@@ -727,22 +727,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   techSkill: {
-    backgroundColor: "#dbeafe", // light blue
+    backgroundColor: "#E0F7FA",
+    borderColor: "#00ACC1",
+    borderWidth: 1,
   },
   artSkill: {
-    backgroundColor: "#fae8ff", // light purple
+    backgroundColor: "#FCE4EC",
+    borderColor: "#EC407A",
+    borderWidth: 1,
   },
   musicSkill: {
-    backgroundColor: "#fef3c7", // light yellow
+    backgroundColor: "#EDE7F6",
+    borderColor: "#7E57C2",
+    borderWidth: 1,
   },
   languageSkill: {
-    backgroundColor: "#dcfce7", // light green
-  },
-  fitnessSkill: {
-    backgroundColor: "#ffedd5", // light orange
+    backgroundColor: "#FFF3E0",
+    borderColor: "#FFA726",
+    borderWidth: 1,
   },
   otherSkill: {
-    backgroundColor: "#e0e7ff", // light indigo (default)
+    backgroundColor: "#F5F5F5",
+    borderColor: "#BDBDBD",
+    borderWidth: 1,
   },
   skillText: {
     color: "#4f46e5",

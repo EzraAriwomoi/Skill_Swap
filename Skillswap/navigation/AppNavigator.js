@@ -5,10 +5,13 @@ import { View, Alert, TouchableOpacity, Platform } from "react-native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { AuthContext } from "../context/AuthContext";
-import { useNavigation } from "@react-navigation/native";
-import { MoreVertical } from "lucide-react-native";
+import {
+  useNavigation,
+  getFocusedRouteNameFromRoute,
+} from "@react-navigation/native";
+import { MoreVertical, ChevronLeft } from "lucide-react-native";
 import { Menu, MenuItem } from "../components/Menu";
-import { ChevronLeft } from "lucide-react-native";
+import Feather from "react-native-vector-icons/Feather";
 
 import LoginScreen from "../screens/LoginScreen";
 import SignupScreen from "../screens/SignupScreen";
@@ -22,7 +25,6 @@ import UserProfile from "../screens/UserProfile";
 import CreateBookingScreen from "../screens/CreateBookingScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import BlurTabBarBackground from "../components/BlurTabBarBackground";
-import Feather from "react-native-vector-icons/Feather";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -64,7 +66,7 @@ function ChatStack() {
         name="Chat"
         component={ChatScreen}
         options={({ route }) => ({
-          title: route.params.userName,
+          title: route?.params?.userName ?? "Chat",
         })}
       />
     </Stack.Navigator>
@@ -95,22 +97,18 @@ function HomeStack() {
       <Stack.Screen
         name="UserProfile"
         component={UserProfile}
-        options={{
-          title: "User Profile",
-        }}
+        options={{ title: "User Profile" }}
       />
       <Stack.Screen
         name="CreateBooking"
         component={CreateBookingScreen}
-        options={{
-          title: "Book a Session",
-        }}
+        options={{ title: "Book a Session" }}
       />
       <Stack.Screen
         name="Chat"
         component={ChatScreen}
         options={({ route }) => ({
-          title: route.params.userName,
+          title: route?.params?.userName ?? "Chat",
         })}
       />
     </Stack.Navigator>
@@ -128,7 +126,6 @@ function ProfileHeaderRight({ navigation }) {
         text: "Logout",
         onPress: () => {
           logout();
-          navigation.replace("Auth");
         },
         style: "destructive",
       },
@@ -154,14 +151,14 @@ function ProfileHeaderRight({ navigation }) {
         <MenuItem
           onPress={() => {
             setMenuVisible(false);
-            navigation.navigate("EditProfile");
+            navigation.navigate("Profile", { screen: "EditProfile" });
           }}
           title="Edit Profile"
         />
         <MenuItem
           onPress={() => {
             setMenuVisible(false);
-            navigation.navigate("Settings");
+            navigation.navigate("Profile", { screen: "Settings" });
           }}
           title="Settings"
         />
@@ -178,6 +175,7 @@ function ProfileHeaderRight({ navigation }) {
 }
 
 function ProfileStack() {
+  const navigation = useNavigation();
   return (
     <Stack.Navigator
       screenOptions={{
@@ -198,8 +196,11 @@ function ProfileStack() {
         component={ProfileScreen}
         options={({ navigation: screenNavigation }) => ({
           title: "Profile",
-          headerRight: () => (
-            <ProfileHeaderRight navigation={screenNavigation} />
+          headerRight: () => <ProfileHeaderRight navigation={navigation} />,
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => screenNavigation.goBack()}>
+              <ChevronLeft size={24} />
+            </TouchableOpacity>
           ),
           headerLeft: null,
         })}
@@ -207,16 +208,12 @@ function ProfileStack() {
       <Stack.Screen
         name="EditProfile"
         component={EditProfile}
-        options={{
-          title: "Edit Profile",
-        }}
+        options={{ title: "Edit Profile" }}
       />
       <Stack.Screen
         name="Settings"
         component={SettingsScreen}
-        options={{
-          title: "Settings",
-        }}
+        options={{ title: "Settings" }}
       />
     </Stack.Navigator>
   );
@@ -232,15 +229,15 @@ function BookingStack() {
       <Stack.Screen
         name="BookingScreen"
         component={BookingScreen}
-        options={{
-          title: "Bookings",
-        }}
+        options={{ title: "Bookings" }}
       />
     </Stack.Navigator>
   );
 }
 
-function MainTabs() {
+function MainTabs({ route }) {
+  const routeName = getFocusedRouteNameFromRoute(route) ?? "";
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -266,28 +263,37 @@ function MainTabs() {
           ),
         }}
       />
-
       <Tab.Screen
         name="Bookings"
         component={BookingStack}
         options={{
-          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Feather name="calendar" color={color} size={size} />
           ),
         }}
       />
-
       <Tab.Screen
         name="Messages"
         component={ChatStack}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="message-circle" color={color} size={size} />
-          ),
+        options={({ route }) => {
+          const routeName = getFocusedRouteNameFromRoute(route) ?? "";
+          const hideTabBar = routeName === "Chat";
+          return {
+            tabBarStyle: hideTabBar
+              ? { display: "none" }
+              : {
+                  position: "absolute",
+                  backgroundColor: "transparent",
+                  borderTopWidth: 1,
+                  elevation: 0,
+                  height: 85,
+                },
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="message-circle" color={color} size={size} />
+            ),
+          };
         }}
       />
-
       <Tab.Screen
         name="Profile"
         component={ProfileStack}
@@ -303,6 +309,7 @@ function MainTabs() {
 
 export default function AppNavigator() {
   const { user } = useContext(AuthContext);
+  const navigation = useNavigation();
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>

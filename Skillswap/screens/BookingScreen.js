@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useContext } from "react"
+import { useState, useEffect, useContext } from "react";
 import {
   View,
   Text,
@@ -10,89 +10,98 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-} from "react-native"
-import { Calendar, Clock, Check, X } from "lucide-react-native"
-import { AuthContext } from "../context/AuthContext"
-import api from "../services/api"
+} from "react-native";
+import { Calendar, Clock, Check, X } from "lucide-react-native";
+import { AuthContext } from "../context/AuthContext";
+import api from "../services/api";
 
 export default function BookingScreen({ navigation }) {
-  const { user } = useContext(AuthContext)
-  const [bookings, setBookings] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState(null)
-  const [activeTab, setActiveTab] = useState("upcoming")
+  const { user } = useContext(AuthContext);
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState("upcoming");
 
   useEffect(() => {
-    fetchBookings()
-  }, [activeTab])
+    fetchBookings();
+  }, [activeTab]);
 
   const fetchBookings = async () => {
     try {
-      setLoading(true)
-      setError(null)
-      const endpoint = activeTab === "upcoming" ? "/bookings/upcoming" : "/bookings/past"
-      const response = await api.get(endpoint)
-      setBookings(response.data)
+      setLoading(true);
+      setError(null);
+      const endpoint =
+        activeTab === "upcoming" ? "/bookings/upcoming" : "/bookings/past";
+      const response = await api.get(endpoint);
+      setBookings(response.data);
     } catch (error) {
-      console.log("Error fetching bookings", error)
-      setError("Failed to load bookings. Please try again.")
+      console.log("Error fetching bookings", error);
+      setError("Failed to load bookings. Please try again.");
     } finally {
-      setLoading(false)
-      setRefreshing(false)
+      setLoading(false);
+      setRefreshing(false);
     }
-  }
+  };
 
   const onRefresh = () => {
-    setRefreshing(true)
-    fetchBookings()
-  }
+    setRefreshing(true);
+    fetchBookings();
+  };
 
   const handleAcceptBooking = async (bookingId) => {
     try {
-      await api.put(`/bookings/${bookingId}/accept`)
+      await api.put(`/bookings/${bookingId}/accept`);
       // Update the booking in the local state
       setBookings((prevBookings) =>
-        prevBookings.map((booking) => (booking.id === bookingId ? { ...booking, status: "accepted" } : booking)),
-      )
-      Alert.alert("Success", "Booking accepted successfully")
+        prevBookings.map((booking) =>
+          booking.id === bookingId
+            ? { ...booking, status: "accepted" }
+            : booking
+        )
+      );
+      Alert.alert("Success", "Booking accepted successfully");
     } catch (error) {
-      console.log("Error accepting booking", error)
-      Alert.alert("Error", "Failed to accept booking. Please try again.")
+      console.log("Error accepting booking", error);
+      Alert.alert("Error", "Failed to accept booking. Please try again.");
     }
-  }
+  };
 
   const handleDeclineBooking = async (bookingId) => {
     try {
-      await api.put(`/bookings/${bookingId}/decline`)
+      await api.put(`/bookings/${bookingId}/decline`);
       // Update the booking in the local state
       setBookings((prevBookings) =>
-        prevBookings.map((booking) => (booking.id === bookingId ? { ...booking, status: "declined" } : booking)),
-      )
-      Alert.alert("Success", "Booking declined successfully")
+        prevBookings.map((booking) =>
+          booking.id === bookingId
+            ? { ...booking, status: "declined" }
+            : booking
+        )
+      );
+      Alert.alert("Success", "Booking declined successfully");
     } catch (error) {
-      console.log("Error declining booking", error)
-      Alert.alert("Error", "Failed to decline booking. Please try again.")
+      console.log("Error declining booking", error);
+      Alert.alert("Error", "Failed to decline booking. Please try again.");
     }
-  }
+  };
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString)
+    const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
       weekday: "short",
       month: "short",
       day: "numeric",
-    })
-  }
+    });
+  };
 
   const formatTime = (dateString) => {
-    const date = new Date(dateString)
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-  }
+    const date = new Date(dateString);
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
 
   const renderBookingItem = ({ item }) => {
-    const isPending = item.status === "pending"
-    const isTeacher = item.isTeacher
+    const isPending = item.status === "pending";
+    const isTeacher = item.isTeacher;
 
     return (
       <View style={styles.bookingCard}>
@@ -104,7 +113,9 @@ export default function BookingScreen({ navigation }) {
         </View>
 
         <View style={styles.userInfo}>
-          <Text style={styles.userRole}>{isTeacher ? "Student" : "Teacher"}</Text>
+          <Text style={styles.userRole}>
+            {isTeacher ? "Student" : "Teacher"}
+          </Text>
           <Text style={styles.userName}>{item.user.name}</Text>
         </View>
 
@@ -140,23 +151,23 @@ export default function BookingScreen({ navigation }) {
           </View>
         )}
       </View>
-    )
-  }
+    );
+  };
 
   const getStatusStyle = (status) => {
     switch (status) {
       case "pending":
-        return styles.pendingStatus
+        return styles.pendingStatus;
       case "accepted":
-        return styles.acceptedStatus
+        return styles.acceptedStatus;
       case "completed":
-        return styles.completedStatus
+        return styles.completedStatus;
       case "declined":
-        return styles.declinedStatus
+        return styles.declinedStatus;
       default:
-        return {}
+        return {};
     }
-  }
+  };
 
   return (
     <View style={styles.container}>
@@ -165,13 +176,27 @@ export default function BookingScreen({ navigation }) {
           style={[styles.tab, activeTab === "upcoming" && styles.activeTab]}
           onPress={() => setActiveTab("upcoming")}
         >
-          <Text style={[styles.tabText, activeTab === "upcoming" && styles.activeTabText]}>Upcoming</Text>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "upcoming" && styles.activeTabText,
+            ]}
+          >
+            Upcoming
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === "past" && styles.activeTab]}
           onPress={() => setActiveTab("past")}
         >
-          <Text style={[styles.tabText, activeTab === "past" && styles.activeTabText]}>Past</Text>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "past" && styles.activeTabText,
+            ]}
+          >
+            Past
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -192,7 +217,13 @@ export default function BookingScreen({ navigation }) {
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderBookingItem}
           contentContainerStyle={styles.bookingsList}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#00acc1"]} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={["#00acc1"]}
+            />
+          }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>No bookings found</Text>
@@ -201,7 +232,7 @@ export default function BookingScreen({ navigation }) {
         />
       )}
     </View>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -369,4 +400,4 @@ const styles = StyleSheet.create({
     color: "#666",
     fontStyle: "italic",
   },
-})
+});

@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState, useContext } from "react"
+import { useState, useContext } from "react";
 import {
   View,
   Text,
@@ -10,40 +10,46 @@ import {
   Platform,
   Image,
   ActivityIndicator,
-} from "react-native"
-import { TextInput } from "react-native-gesture-handler"
-import { AuthContext } from "../context/AuthContext"
+} from "react-native";
+import { TextInput } from "react-native-gesture-handler";
+import { AuthContext } from "../context/AuthContext";
 
 export default function LoginScreen({ navigation }) {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const { login } = useContext(AuthContext)
+  const { login } = useContext(AuthContext);
 
   const handleLogin = async () => {
     if (!email || !password) {
-      setError("Please fill in all fields")
-      return
+      setError("Please fill in all fields");
+      return;
     }
 
-    setLoading(true)
-    setError("")
+    setLoading(true);
+    setError("");
 
-    const result = await login(email, password)
+    const result = await login(email, password);
 
-    setLoading(false)
+    setLoading(false);
 
     if (!result.success) {
-      setError(result.message)
+      setError(result.message);
     }
-  }
+  };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.container}
+    >
       <View style={styles.logoContainer}>
-        <Image source={{ uri: "https://via.placeholder.com/100" }} style={styles.logo} />
+        <Image
+          source={{ uri: "https://via.placeholder.com/100" }}
+          style={styles.logo}
+        />
         <Text style={styles.title}>SkillSwap</Text>
         <Text style={styles.subtitle}>Learn. Teach. Connect.</Text>
       </View>
@@ -68,8 +74,16 @@ export default function LoginScreen({ navigation }) {
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-        <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Login</Text>}
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleLogin}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Login</Text>
+          )}
         </TouchableOpacity>
 
         <View style={styles.signupContainer}>
@@ -80,7 +94,7 @@ export default function LoginScreen({ navigation }) {
         </View>
       </View>
     </KeyboardAvoidingView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -149,4 +163,4 @@ const styles = StyleSheet.create({
     color: "#00acc1",
     fontWeight: "bold",
   },
-})
+});

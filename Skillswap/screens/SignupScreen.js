@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState, useContext } from "react"
+import { useState, useContext } from "react";
 import {
   View,
   Text,
@@ -11,48 +11,54 @@ import {
   Image,
   ActivityIndicator,
   ScrollView,
-} from "react-native"
-import { TextInput } from "react-native-gesture-handler"
-import { AuthContext } from "../context/AuthContext"
+} from "react-native";
+import { TextInput } from "react-native-gesture-handler";
+import { AuthContext } from "../context/AuthContext";
 
 export default function SignupScreen({ navigation }) {
-  const [name, setName] = useState("")
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const { signup } = useContext(AuthContext)
+  const { signup } = useContext(AuthContext);
 
   const handleSignup = async () => {
     if (!name || !email || !password || !confirmPassword) {
-      setError("Please fill in all fields")
-      return
+      setError("Please fill in all fields");
+      return;
     }
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match")
-      return
+      setError("Passwords do not match");
+      return;
     }
 
-    setLoading(true)
-    setError("")
+    setLoading(true);
+    setError("");
 
-    const result = await signup(name, email, password)
+    const result = await signup(name, email, password);
 
-    setLoading(false)
+    setLoading(false);
 
     if (!result.success) {
-      setError(result.message)
+      setError(result.message);
     }
-  }
+  };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.container}
+    >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.logoContainer}>
-          <Image source={{ uri: "https://via.placeholder.com/100" }} style={styles.logo} />
+          <Image
+            source={{ uri: "https://via.placeholder.com/100" }}
+            style={styles.logo}
+          />
           <Text style={styles.title}>SkillSwap</Text>
           <Text style={styles.subtitle}>Join our community</Text>
         </View>
@@ -93,8 +99,16 @@ export default function SignupScreen({ navigation }) {
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-          <TouchableOpacity style={styles.button} onPress={handleSignup} disabled={loading}>
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Sign Up</Text>}
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleSignup}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Sign Up</Text>
+            )}
           </TouchableOpacity>
 
           <View style={styles.loginContainer}>
@@ -106,7 +120,7 @@ export default function SignupScreen({ navigation }) {
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -179,4 +193,4 @@ const styles = StyleSheet.create({
     color: "#00acc1",
     fontWeight: "bold",
   },
-})
+});

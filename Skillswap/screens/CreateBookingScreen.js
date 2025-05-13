@@ -1,123 +1,140 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from "react-native"
-import { Calendar, Clock } from "lucide-react-native"
-import api from "../services/api"
+import { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
+import { Calendar, Clock } from "lucide-react-native";
+import api from "../services/api";
 
 export default function CreateBookingScreen({ route, navigation }) {
-  const { userId, skillName } = route.params
-  const [selectedDate, setSelectedDate] = useState(null)
-  const [selectedTime, setSelectedTime] = useState(null)
-  const [availableDates, setAvailableDates] = useState([])
-  const [availableTimes, setAvailableTimes] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState(null)
+  const { userId, skillName } = route.params;
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedTime, setSelectedTime] = useState(null);
+  const [availableDates, setAvailableDates] = useState([]);
+  const [availableTimes, setAvailableTimes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchAvailability()
-  }, [userId])
+    fetchAvailability();
+  }, [userId]);
 
   useEffect(() => {
     if (selectedDate) {
-      fetchAvailableTimes()
+      fetchAvailableTimes();
     }
-  }, [selectedDate])
+  }, [selectedDate]);
 
   const fetchAvailability = async () => {
     try {
-      setLoading(true)
-      setError(null)
-      const response = await api.get(`/users/${userId}/availability`)
-      setAvailableDates(response.data.availableDates.map((date) => new Date(date)))
+      setLoading(true);
+      setError(null);
+      const response = await api.get(`/users/${userId}/availability`);
+      setAvailableDates(
+        response.data.availableDates.map((date) => new Date(date))
+      );
     } catch (error) {
-      console.log("Error fetching availability", error)
-      setError("Failed to load availability. Please try again.")
+      console.log("Error fetching availability", error);
+      setError("Failed to load availability. Please try again.");
 
       // Fallback to some default dates for development
-      const defaultDates = []
+      const defaultDates = [];
       for (let i = 1; i <= 7; i++) {
-        defaultDates.push(new Date(Date.now() + 86400000 * i))
+        defaultDates.push(new Date(Date.now() + 86400000 * i));
       }
-      setAvailableDates(defaultDates)
+      setAvailableDates(defaultDates);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const fetchAvailableTimes = async () => {
-    if (!selectedDate) return
+    if (!selectedDate) return;
 
     try {
-      setAvailableTimes([]) // Clear previous times
-      const dateString = selectedDate.toISOString().split("T")[0]
-      const response = await api.get(`/users/${userId}/availability/${dateString}`)
-      setAvailableTimes(response.data.availableTimes)
+      setAvailableTimes([]); // Clear previous times
+      const dateString = selectedDate.toISOString().split("T")[0];
+      const response = await api.get(
+        `/users/${userId}/availability/${dateString}`
+      );
+      setAvailableTimes(response.data.availableTimes);
     } catch (error) {
-      console.log("Error fetching available times", error)
+      console.log("Error fetching available times", error);
 
       // Fallback to some default times for development
-      setAvailableTimes(["09:00", "11:00", "14:00", "16:00", "18:00"])
+      setAvailableTimes(["09:00", "11:00", "14:00", "16:00", "18:00"]);
     }
-  }
+  };
 
   const formatDate = (date) => {
     return date.toLocaleDateString("en-US", {
       weekday: "short",
       month: "short",
       day: "numeric",
-    })
-  }
+    });
+  };
 
   const handleBooking = async () => {
     if (!selectedDate || !selectedTime) {
-      Alert.alert("Error", "Please select both date and time")
-      return
+      Alert.alert("Error", "Please select both date and time");
+      return;
     }
 
-    setSubmitting(true)
+    setSubmitting(true);
 
     try {
-      const dateTime = new Date(`${selectedDate.toISOString().split("T")[0]}T${selectedTime}:00`)
+      const dateTime = new Date(
+        `${selectedDate.toISOString().split("T")[0]}T${selectedTime}:00`
+      );
 
       const response = await api.post("/bookings", {
         teacherId: userId,
         skill: skillName,
         dateTime: dateTime.toISOString(),
         duration: 60, // default duration in minutes
-      })
+      });
 
       Alert.alert(
         "Booking Requested",
         "Your booking request has been sent. You'll be notified when the teacher responds.",
-        [{ text: "OK", onPress: () => navigation.navigate("Bookings") }],
-      )
+        [{ text: "OK", onPress: () => navigation.navigate("Bookings") }]
+      );
     } catch (error) {
-      console.log("Error creating booking", error)
-      Alert.alert("Error", "Failed to create booking. Please try again.")
+      console.log("Error creating booking", error);
+      Alert.alert("Error", "Failed to create booking. Please try again.");
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#00acc1" />
       </View>
-    )
+    );
   }
 
   if (error) {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchAvailability}>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={fetchAvailability}
+        >
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
-    )
+    );
   }
 
   return (
@@ -129,25 +146,34 @@ export default function CreateBookingScreen({ route, navigation }) {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>
-          <Calendar size={18} color="#333" style={styles.icon} /> Available Dates
+          <Calendar size={18} color="#333" style={styles.icon} /> Available
+          Dates
         </Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.datesContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.datesContainer}
+        >
           {availableDates.map((date, index) => (
             <TouchableOpacity
               key={index}
               style={[
                 styles.dateItem,
-                selectedDate && date.toDateString() === selectedDate.toDateString() && styles.selectedItem,
+                selectedDate &&
+                  date.toDateString() === selectedDate.toDateString() &&
+                  styles.selectedItem,
               ]}
               onPress={() => {
-                setSelectedDate(date)
-                setSelectedTime(null) // Reset selected time when date changes
+                setSelectedDate(date);
+                setSelectedTime(null); // Reset selected time when date changes
               }}
             >
               <Text
                 style={[
                   styles.dateText,
-                  selectedDate && date.toDateString() === selectedDate.toDateString() && styles.selectedText,
+                  selectedDate &&
+                    date.toDateString() === selectedDate.toDateString() &&
+                    styles.selectedText,
                 ]}
               >
                 {formatDate(date)}
@@ -167,21 +193,37 @@ export default function CreateBookingScreen({ route, navigation }) {
               availableTimes.map((time, index) => (
                 <TouchableOpacity
                   key={index}
-                  style={[styles.timeItem, selectedTime === time && styles.selectedItem]}
+                  style={[
+                    styles.timeItem,
+                    selectedTime === time && styles.selectedItem,
+                  ]}
                   onPress={() => setSelectedTime(time)}
                 >
-                  <Text style={[styles.timeText, selectedTime === time && styles.selectedText]}>{time}</Text>
+                  <Text
+                    style={[
+                      styles.timeText,
+                      selectedTime === time && styles.selectedText,
+                    ]}
+                  >
+                    {time}
+                  </Text>
                 </TouchableOpacity>
               ))
             ) : (
-              <Text style={styles.noTimesText}>No available times for this date</Text>
+              <Text style={styles.noTimesText}>
+                No available times for this date
+              </Text>
             )}
           </View>
         </View>
       )}
 
       <TouchableOpacity
-        style={[styles.bookButton, (!selectedDate || !selectedTime || submitting) && styles.disabledButton]}
+        style={[
+          styles.bookButton,
+          (!selectedDate || !selectedTime || submitting) &&
+            styles.disabledButton,
+        ]}
         onPress={handleBooking}
         disabled={!selectedDate || !selectedTime || submitting}
       >
@@ -192,7 +234,7 @@ export default function CreateBookingScreen({ route, navigation }) {
         )}
       </TouchableOpacity>
     </ScrollView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -327,4 +369,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
-})
+});

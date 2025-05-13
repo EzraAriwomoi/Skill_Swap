@@ -1,21 +1,29 @@
-"use client"
+"use client";
 
-import { useState, useContext } from "react"
-import { View, Text, StyleSheet, Switch, TouchableOpacity, ScrollView, Alert } from "react-native"
-import { AuthContext } from "../context/AuthContext"
-import { Bell, Moon, Shield, HelpCircle, LogOut } from "lucide-react-native"
+import { useState, useContext } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Switch,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+} from "react-native";
+import { AuthContext } from "../context/AuthContext";
+import { Bell, Moon, Shield, HelpCircle, LogOut } from "lucide-react-native";
 
 export default function SettingsScreen() {
-  const { logout } = useContext(AuthContext)
-  const [notifications, setNotifications] = useState(true)
-  const [darkMode, setDarkMode] = useState(false)
+  const { logout } = useContext(AuthContext);
+  const [notifications, setNotifications] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
 
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
       { text: "Cancel", style: "cancel" },
       { text: "Logout", onPress: logout, style: "destructive" },
-    ])
-  }
+    ]);
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -72,7 +80,7 @@ export default function SettingsScreen() {
         <Text style={styles.logoutText}>Logout</Text>
       </TouchableOpacity>
     </ScrollView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -131,4 +139,4 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginLeft: 10,
   },
-})
+});

@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState, useCallback, useEffect, useRef } from "react"
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -14,149 +14,144 @@ import {
   StatusBar,
   Animated,
   Dimensions,
-} from "react-native"
-import { useFocusEffect } from "@react-navigation/native"
-import api from "../services/api"
-import { LinearGradient } from "expo-linear-gradient"
-import { io } from "socket.io-client"
-import Feather from "react-native-vector-icons/Feather"
-import { useContext } from "react"
-import { AuthContext } from "../context/AuthContext"
-import AsyncStorage from "@react-native-async-storage/async-storage"
+} from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
+import api from "../services/api";
+import { LinearGradient } from "expo-linear-gradient";
+import { io } from "socket.io-client";
+import Feather from "react-native-vector-icons/Feather";
+import { useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const { width } = Dimensions.get("window")
+const { width } = Dimensions.get("window");
 
 export default function ChatListScreen({ navigation }) {
-  const { user } = useContext(AuthContext)
-  const [chats, setChats] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState(null)
-  const socket = useRef(null)
-  const scrollY = useRef(new Animated.Value(0)).current
+  const { user } = useContext(AuthContext);
+  const [chats, setChats] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
+  const socket = useRef(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
-  // Connect to socket when component mounts
   useEffect(() => {
-    // Initialize socket connection
     const connectSocket = async () => {
       try {
-        const socketUrl = process.env.SOCKET_URL || "http://192.168.100.4:3000" // Use same URL as your API
-        const token = await AsyncStorage.getItem("token")
+        const socketUrl = process.env.SOCKET_URL || "http://192.168.100.4:3000";
+        const token = await AsyncStorage.getItem("token");
 
         socket.current = io(socketUrl, {
           auth: {
             token: token,
           },
-          transports: ["websocket"], // Force WebSocket transport
-        })
+          transports: ["websocket"],
+        });
 
-        // Listen for connection events
         socket.current.on("connect", () => {
-          console.log("Socket connected")
-        })
+          console.log("Socket connected");
+        });
 
         socket.current.on("connect_error", (err) => {
-          console.log("Socket connection error:", err.message)
-        })
+          console.log("Socket connection error:", err.message);
+        });
 
         // Listen for new messages
         socket.current.on("new_message", (data) => {
-          console.log("New message received:", data)
-          updateChatWithNewMessage(data)
-        })
+          console.log("New message received:", data);
+          updateChatWithNewMessage(data);
+        });
 
         // Listen for read status updates
         socket.current.on("message_read", (data) => {
-          console.log("Message read status updated:", data)
-          updateMessageReadStatus(data)
-        })
+          console.log("Message read status updated:", data);
+          updateMessageReadStatus(data);
+        });
       } catch (error) {
-        console.log("Socket connection error:", error)
+        console.log("Socket connection error:", error);
       }
-    }
+    };
 
-    connectSocket()
+    connectSocket();
 
     return () => {
-      // Disconnect socket when component unmounts
       if (socket.current) {
-        socket.current.disconnect()
+        socket.current.disconnect();
       }
-    }
-  }, [])
+    };
+  }, []);
 
-  // Fetch chats when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      fetchChats()
+      fetchChats();
 
       // Join user's room for real-time updates
       if (socket.current && user) {
-        socket.current.emit("join_user_room", { userId: user.id })
+        socket.current.emit("join_user_room", { userId: user.id });
       }
 
       return () => {
-        // Leave room when screen loses focus
         if (socket.current && user) {
-          socket.current.emit("leave_user_room", { userId: user.id })
+          socket.current.emit("leave_user_room", { userId: user.id });
         }
-      }
-    }, [user]),
-  )
+      };
+    }, [user])
+  );
 
   const fetchChats = async () => {
     try {
-      setLoading(true)
-      setError(null)
-      const response = await api.get("/messages/chats")
-      setChats(response.data)
+      setLoading(true);
+      setError(null);
+      const response = await api.get("/messages/chats");
+      setChats(response.data);
     } catch (error) {
-      console.log("Error fetching chats", error)
-      setError("Failed to load chats. Please try again.")
+      console.log("Error fetching chats", error);
+      setError("Failed to load chats. Please try again.");
     } finally {
-      setLoading(false)
-      setRefreshing(false)
+      setLoading(false);
+      setRefreshing(false);
     }
-  }
+  };
 
   const updateChatWithNewMessage = (messageData) => {
     setChats((prevChats) => {
       // Find if we already have this chat
-      const chatIndex = prevChats.findIndex((chat) => chat.id === messageData.chatId)
+      const chatIndex = prevChats.findIndex(
+        (chat) => chat.id === messageData.chatId
+      );
 
       if (chatIndex >= 0) {
         // Update existing chat
-        const updatedChats = [...prevChats]
+        const updatedChats = [...prevChats];
         updatedChats[chatIndex] = {
           ...updatedChats[chatIndex],
           lastMessage: {
             content: messageData.content,
             timestamp: messageData.createdAt || new Date().toISOString(),
-            read: messageData.senderId === user.id, // Messages sent by current user are considered read
+            read: messageData.senderId === user.id,
           },
           unreadCount:
             messageData.senderId !== user.id
               ? (updatedChats[chatIndex].unreadCount || 0) + 1
               : updatedChats[chatIndex].unreadCount,
-        }
+        };
 
         // Move this chat to the top
-        const chatToMove = updatedChats.splice(chatIndex, 1)[0]
-        return [chatToMove, ...updatedChats]
+        const chatToMove = updatedChats.splice(chatIndex, 1)[0];
+        return [chatToMove, ...updatedChats];
       } else {
-        // This is a new chat, we should fetch all chats to get the complete data
-        fetchChats()
-        return prevChats
+        fetchChats();
+        return prevChats;
       }
-    })
-  }
+    });
+  };
 
   const updateMessageReadStatus = (data) => {
     setChats((prevChats) => {
-      const chatIndex = prevChats.findIndex((chat) => chat.id === data.chatId)
+      const chatIndex = prevChats.findIndex((chat) => chat.id === data.chatId);
 
       if (chatIndex >= 0) {
-        const updatedChats = [...prevChats]
+        const updatedChats = [...prevChats];
         updatedChats[chatIndex] = {
           ...updatedChats[chatIndex],
           lastMessage: {
@@ -164,25 +159,24 @@ export default function ChatListScreen({ navigation }) {
             read: true,
           },
           unreadCount: 0,
-        }
-        return updatedChats
+        };
+        return updatedChats;
       }
-      return prevChats
-    })
-  }
+      return prevChats;
+    });
+  };
 
   const onRefresh = () => {
-    setRefreshing(true)
-    fetchChats()
-  }
+    setRefreshing(true);
+    fetchChats();
+  };
 
   const formatTime = (timestamp) => {
-    if (!timestamp) return ""
+    if (!timestamp) return "";
 
-    const now = new Date()
-    const messageDate = new Date(timestamp)
+    const now = new Date();
+    const messageDate = new Date(timestamp);
 
-    // Check if the message is from today
     if (
       messageDate.getDate() === now.getDate() &&
       messageDate.getMonth() === now.getMonth() &&
@@ -191,34 +185,31 @@ export default function ChatListScreen({ navigation }) {
       return messageDate.toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
-      })
+      });
     }
 
-    // Check if the message is from yesterday
-    const yesterday = new Date(now)
-    yesterday.setDate(now.getDate() - 1)
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
     if (
       messageDate.getDate() === yesterday.getDate() &&
       messageDate.getMonth() === yesterday.getMonth() &&
       messageDate.getFullYear() === yesterday.getFullYear()
     ) {
-      return "Yesterday"
+      return "Yesterday";
     }
 
-    // Check if the message is from this week
-    const oneWeekAgo = new Date(now)
-    oneWeekAgo.setDate(now.getDate() - 7)
+    const oneWeekAgo = new Date(now);
+    oneWeekAgo.setDate(now.getDate() - 7);
     if (messageDate > oneWeekAgo) {
-      const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-      return days[messageDate.getDay()]
+      const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      return days[messageDate.getDay()];
     }
 
-    // Otherwise, return the date
     return messageDate.toLocaleDateString([], {
       month: "short",
       day: "numeric",
-    })
-  }
+    });
+  };
 
   const handleChatPress = (chat) => {
     // Mark messages as read when opening the chat
@@ -226,38 +217,41 @@ export default function ChatListScreen({ navigation }) {
       socket.current.emit("mark_messages_read", {
         chatId: chat.id,
         userId: user.id,
-      })
+      });
     }
 
     navigation.navigate("Chat", {
       chatId: chat.id,
       userName: chat.user.name,
       userId: chat.user.id,
-    })
-  }
+    });
+  };
 
   // Animated header
   const headerHeight = scrollY.interpolate({
     inputRange: [0, 100],
-    outputRange: [Platform.OS === "android" ? StatusBar.currentHeight + 60 : 80, 60],
+    outputRange: [
+      Platform.OS === "android" ? StatusBar.currentHeight + 60 : 80,
+      60,
+    ],
     extrapolate: "clamp",
-  })
+  });
 
   const headerOpacity = scrollY.interpolate({
     inputRange: [0, 60],
     outputRange: [1, 0.9],
     extrapolate: "clamp",
-  })
+  });
 
   const titleSize = scrollY.interpolate({
     inputRange: [0, 60],
     outputRange: [28, 22],
     extrapolate: "clamp",
-  })
+  });
 
   // Render read status indicators
   const renderReadStatus = (message, unreadCount) => {
-    if (!message) return null
+    if (!message) return null;
 
     if (message.senderId === user?.id) {
       // Message sent by current user - show read status
@@ -269,25 +263,27 @@ export default function ChatListScreen({ navigation }) {
             <Feather name="check" size={14} color="#888" />
           )}
         </View>
-      )
+      );
     } else if (unreadCount > 0) {
       // Unread message from other user
       return (
         <View style={styles.unreadBadge}>
-          <Text style={styles.unreadBadgeText}>{unreadCount > 99 ? "99+" : unreadCount}</Text>
+          <Text style={styles.unreadBadgeText}>
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </Text>
         </View>
-      )
+      );
     }
 
-    return null
-  }
+    return null;
+  };
 
   if (loading && !refreshing) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#00acc1" />
       </View>
-    )
+    );
   }
 
   if (error) {
@@ -298,12 +294,15 @@ export default function ChatListScreen({ navigation }) {
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
-    )
+    );
   }
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <LinearGradient colors={["#00acc1", "rgba(0, 172, 193, 0)"]} style={styles.gradientBackground} />
+      <LinearGradient
+        colors={["#00acc1", "rgba(0, 172, 193, 0)"]}
+        style={styles.gradientBackground}
+      />
       <View style={styles.container}>
         {/* <Animated.View
           style={[
@@ -320,9 +319,16 @@ export default function ChatListScreen({ navigation }) {
         <Animated.FlatList
           data={chats}
           keyExtractor={(item) => item.id.toString()}
-          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: false }
+          )}
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.chatItem} onPress={() => handleChatPress(item)} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={styles.chatItem}
+              onPress={() => handleChatPress(item)}
+              activeOpacity={0.7}
+            >
               <View style={styles.avatarContainer}>
                 {item.user.photoUrl ? (
                   <Image
@@ -332,7 +338,9 @@ export default function ChatListScreen({ navigation }) {
                   />
                 ) : (
                   <View style={[styles.avatar, styles.defaultAvatar]}>
-                    <Text style={styles.avatarText}>{item.user.name.charAt(0).toUpperCase()}</Text>
+                    <Text style={styles.avatarText}>
+                      {item.user.name.charAt(0).toUpperCase()}
+                    </Text>
                   </View>
                 )}
                 {item.user.online && <View style={styles.onlineIndicator} />}
@@ -342,7 +350,9 @@ export default function ChatListScreen({ navigation }) {
                 <View style={styles.chatHeader}>
                   <Text style={styles.userName}>{item.user.name}</Text>
                   <Text style={styles.timestamp}>
-                    {item.lastMessage?.timestamp ? formatTime(item.lastMessage.timestamp) : ""}
+                    {item.lastMessage?.timestamp
+                      ? formatTime(item.lastMessage.timestamp)
+                      : ""}
                   </Text>
                 </View>
 
@@ -350,12 +360,16 @@ export default function ChatListScreen({ navigation }) {
                   <Text
                     style={[
                       styles.message,
-                      item.unreadCount > 0 && item.lastMessage?.senderId !== user?.id && styles.unreadMessage,
+                      item.unreadCount > 0 &&
+                        item.lastMessage?.senderId !== user?.id &&
+                        styles.unreadMessage,
                     ]}
                     numberOfLines={1}
                     ellipsizeMode="tail"
                   >
-                    {item.lastMessage?.senderId === user?.id && <Text style={styles.youPrefix}>You: </Text>}
+                    {item.lastMessage?.senderId === user?.id && (
+                      <Text style={styles.youPrefix}>You: </Text>
+                    )}
                     {item.lastMessage?.content || "No messages yet"}
                   </Text>
 
@@ -364,9 +378,17 @@ export default function ChatListScreen({ navigation }) {
               </View>
             </TouchableOpacity>
           )}
-          contentContainerStyle={[styles.listContent, chats.length === 0 && styles.emptyListContent]}
+          contentContainerStyle={[
+            styles.listContent,
+            chats.length === 0 && styles.emptyListContent,
+          ]}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#00acc1"]} tintColor="#00acc1" />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={["#00acc1"]}
+              tintColor="#00acc1"
+            />
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
@@ -374,8 +396,13 @@ export default function ChatListScreen({ navigation }) {
                 <Feather name="message-square" size={50} color="#ccc" />
               </View>
               <Text style={styles.emptyText}>No conversations yet</Text>
-              <Text style={styles.emptySubText}>Start chatting with tutors or students</Text>
-              <TouchableOpacity style={styles.findPeopleButton} onPress={() => navigation.navigate("Home")}>
+              <Text style={styles.emptySubText}>
+                Start chatting with tutors or students
+              </Text>
+              <TouchableOpacity
+                style={styles.findPeopleButton}
+                onPress={() => navigation.navigate("Home")}
+              >
                 <Text style={styles.findPeopleButtonText}>Find People</Text>
               </TouchableOpacity>
             </View>
@@ -383,7 +410,7 @@ export default function ChatListScreen({ navigation }) {
         />
       </View>
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -588,4 +615,4 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 16,
   },
-})
+});

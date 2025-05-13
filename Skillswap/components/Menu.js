@@ -1,6 +1,13 @@
-import { View, Text, TouchableOpacity, Modal, StyleSheet, Dimensions } from "react-native"
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Modal,
+  StyleSheet,
+  Dimensions,
+} from "react-native";
 
-const { width, height } = Dimensions.get("window")
+const { width, height } = Dimensions.get("window");
 
 export const MenuItem = ({ onPress, title, icon }) => {
   return (
@@ -8,20 +15,29 @@ export const MenuItem = ({ onPress, title, icon }) => {
       {icon && <View style={styles.menuItemIcon}>{icon}</View>}
       <Text style={styles.menuItemText}>{title}</Text>
     </TouchableOpacity>
-  )
-}
+  );
+};
 
 export const Menu = ({ visible, onDismiss, children, anchor, style }) => {
-  if (!visible) return null
+  if (!visible) return null;
 
   return (
-    <Modal transparent visible={visible} animationType="fade" onRequestClose={onDismiss}>
-      <TouchableOpacity style={styles.overlay} onPress={onDismiss} activeOpacity={1}>
+    <Modal
+      transparent
+      visible={visible}
+      animationType="fade"
+      onRequestClose={onDismiss}
+    >
+      <TouchableOpacity
+        style={styles.overlay}
+        onPress={onDismiss}
+        activeOpacity={1}
+      >
         <View style={[styles.menuContainer, style]}>{children}</View>
       </TouchableOpacity>
     </Modal>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   overlay: {
@@ -55,4 +71,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#333",
   },
-})
+});

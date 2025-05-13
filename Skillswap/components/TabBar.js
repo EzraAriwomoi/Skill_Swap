@@ -1,4 +1,11 @@
-import { View, TouchableOpacity, Text, StyleSheet, Platform, Dimensions } from "react-native";
+import {
+  View,
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  Platform,
+  Dimensions,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "react-native-vector-icons/Feather";
 import { BlurView } from "expo-blur";
@@ -14,7 +21,7 @@ export default function TabBar({
   const insets = useSafeAreaInsets();
 
   // Calculate bottom padding based on safe area
-  const bottomPadding = Platform.OS === "ios" ? insets.bottom : 10;
+  const bottomPadding = Math.max(insets.bottom, 10);
 
   return (
     <View style={[styles.container, { paddingBottom: bottomPadding }]}>
@@ -124,6 +131,8 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     borderTopWidth: 1,
     borderTopColor: "rgba(0,0,0,0.05)",
+    zIndex: 1000,
+    elevation: 10,
   },
   androidBackground: {
     backgroundColor: "rgba(255, 255, 255, 0.95)",

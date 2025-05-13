@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useRef, useContext } from "react"
+import { useState, useEffect, useRef, useContext } from "react";
 import {
   View,
   Text,
@@ -13,44 +13,46 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
-} from "react-native"
-import { Send } from "lucide-react-native"
-import { AuthContext } from "../context/AuthContext"
-import api from "../services/api"
-import { LinearGradient } from "expo-linear-gradient"
-import { getSocket, joinRoom, leaveRoom, markMessagesAsRead, sendTypingStatus } from "../services/socketService"
+} from "react-native";
+import { Send } from "lucide-react-native";
+import { AuthContext } from "../context/AuthContext";
+import api from "../services/api";
+import { LinearGradient } from "expo-linear-gradient";
+import {
+  getSocket,
+  joinRoom,
+  leaveRoom,
+  markMessagesAsRead,
+  sendTypingStatus,
+} from "../services/socketService";
 
 export default function ChatScreen({ route }) {
-  const { chatId, userId } = route.params
-  const { user } = useContext(AuthContext)
-  const [messages, setMessages] = useState([])
-  const [inputMessage, setInputMessage] = useState("")
-  const [loading, setLoading] = useState(true)
-  const [sending, setSending] = useState(false)
-  const [error, setError] = useState(null)
-  const [page, setPage] = useState(1)
-  const [hasMore, setHasMore] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [isTyping, setIsTyping] = useState(false)
-  const [otherUserTyping, setOtherUserTyping] = useState(false)
-  const flatListRef = useRef(null)
-  const typingTimeoutRef = useRef(null)
+  const { chatId, userId } = route.params;
+  const { user } = useContext(AuthContext);
+  const [messages, setMessages] = useState([]);
+  const [inputMessage, setInputMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const [otherUserTyping, setOtherUserTyping] = useState(false);
+  const flatListRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
   useEffect(() => {
-    fetchMessages()
+    fetchMessages();
 
-    // Join chat room
-    joinRoom(chatId)
-
-    // Mark messages as read when entering the chat
-    markMessagesAsRead(chatId, user.id)
+    joinRoom(chatId);
+    markMessagesAsRead(chatId, user.id);
 
     // Listen for new messages
-    const socket = getSocket()
+    const socket = getSocket();
     if (socket) {
       socket.on("new_message", (data) => {
         if (data.chatId === chatId) {
-          // Add the new message to our messages list
           setMessages((prevMessages) => [
             {
               ...data,
@@ -58,127 +60,131 @@ export default function ChatScreen({ route }) {
               timestamp: data.createdAt || new Date().toISOString(),
             },
             ...prevMessages,
-          ])
+          ]);
 
           // Mark message as read since we're in the chat
-          markMessagesAsRead(chatId, user.id)
+          markMessagesAsRead(chatId, user.id);
         }
-      })
+      });
 
       // Listen for typing status
       socket.on("typing_status", (data) => {
         if (data.chatId === chatId && data.userId !== user.id) {
-          setOtherUserTyping(data.isTyping)
+          setOtherUserTyping(data.isTyping);
         }
-      })
+      });
     }
 
     return () => {
       // Leave chat room when component unmounts
-      leaveRoom(chatId)
+      leaveRoom(chatId);
 
       // Remove event listeners
-      const socket = getSocket()
+      const socket = getSocket();
       if (socket) {
-        socket.off("new_message")
-        socket.off("typing_status")
+        socket.off("new_message");
+        socket.off("typing_status");
       }
 
       // Clear typing timeout
       if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current)
+        clearTimeout(typingTimeoutRef.current);
       }
-    }
-  }, [chatId, user.id])
+    };
+  }, [chatId, user.id]);
 
   const fetchMessages = async (refresh = false) => {
     try {
-      setLoading(true)
-      setError(null)
-      const currentPage = refresh ? 1 : page
-      const response = await api.get(`/messages/${chatId}?page=${currentPage}&limit=20`)
+      setLoading(true);
+      setError(null);
+      const currentPage = refresh ? 1 : page;
+      const response = await api.get(
+        `/messages/${chatId}?page=${currentPage}&limit=20`
+      );
 
       const newMessages = response.data.messages.map((msg) => ({
         ...msg,
         id: msg._id ? msg._id.toString() : msg._id,
         timestamp: msg.createdAt || msg.updatedAt || new Date().toISOString(),
-      }))
-      setHasMore(response.data.hasMore)
+      }));
+      setHasMore(response.data.hasMore);
 
       if (refresh || currentPage === 1) {
-        setMessages(newMessages)
-        setPage(2)
+        setMessages(newMessages);
+        setPage(2);
       } else {
-        setMessages((prevMessages) => [...newMessages, ...prevMessages])
-        setPage(currentPage + 1)
+        setMessages((prevMessages) => [...newMessages, ...prevMessages]);
+        setPage(currentPage + 1);
       }
     } catch (error) {
-      console.log("Error fetching messages", error)
-      setError("Failed to load messages. Please try again.")
+      console.log("Error fetching messages", error);
+      setError("Failed to load messages. Please try again.");
     } finally {
-      setLoading(false)
-      setLoadingMore(false)
+      setLoading(false);
+      setLoadingMore(false);
     }
-  }
+  };
 
   const loadMoreMessages = async () => {
-    if (loadingMore || !hasMore) return
+    if (loadingMore || !hasMore) return;
 
-    setLoadingMore(true)
+    setLoadingMore(true);
     try {
-      const response = await api.get(`/messages/${chatId}?page=${page}&limit=20`)
-      const newMessages = response.data.messages
+      const response = await api.get(
+        `/messages/${chatId}?page=${page}&limit=20`
+      );
+      const newMessages = response.data.messages;
 
       if (newMessages.length > 0) {
-        setMessages((prevMessages) => [...newMessages, ...prevMessages])
-        setPage(page + 1)
-        setHasMore(response.data.hasMore)
+        setMessages((prevMessages) => [...newMessages, ...prevMessages]);
+        setPage(page + 1);
+        setHasMore(response.data.hasMore);
       } else {
-        setHasMore(false)
+        setHasMore(false);
       }
     } catch (error) {
-      console.log("Error loading more messages", error)
+      console.log("Error loading more messages", error);
     } finally {
-      setLoadingMore(false)
+      setLoadingMore(false);
     }
-  }
+  };
 
   const handleInputChange = (text) => {
-    setInputMessage(text)
+    setInputMessage(text);
 
     // Send typing status
     if (!isTyping) {
-      setIsTyping(true)
-      sendTypingStatus(chatId, user.id, true)
+      setIsTyping(true);
+      sendTypingStatus(chatId, user.id, true);
     }
 
     // Clear previous timeout
     if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current)
+      clearTimeout(typingTimeoutRef.current);
     }
 
     // Set new timeout to stop typing indicator after 3 seconds of inactivity
     typingTimeoutRef.current = setTimeout(() => {
-      setIsTyping(false)
-      sendTypingStatus(chatId, user.id, false)
-    }, 3000)
-  }
+      setIsTyping(false);
+      sendTypingStatus(chatId, user.id, false);
+    }, 3000);
+  };
 
   const sendMessage = async () => {
-    if (inputMessage.trim() === "") return
+    if (inputMessage.trim() === "") return;
 
-    setSending(true)
-    const messageText = inputMessage.trim()
-    setInputMessage("")
+    setSending(true);
+    const messageText = inputMessage.trim();
+    setInputMessage("");
 
     // Clear typing status
-    setIsTyping(false)
-    sendTypingStatus(chatId, user.id, false)
+    setIsTyping(false);
+    sendTypingStatus(chatId, user.id, false);
     if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current)
+      clearTimeout(typingTimeoutRef.current);
     }
 
-    const tempId = `temp-${Date.now()}`
+    const tempId = `temp-${Date.now()}`;
     const newMessage = {
       id: tempId,
       chatId,
@@ -187,106 +193,115 @@ export default function ChatScreen({ route }) {
       content: messageText,
       timestamp: new Date().toISOString(),
       pending: true,
-    }
+    };
 
-    setMessages((prevMessages) => [newMessage, ...prevMessages])
+    setMessages((prevMessages) => [newMessage, ...prevMessages]);
 
     try {
       const response = await api.post("/messages", {
         receiverId: userId,
         content: messageText,
-      })
+      });
 
       setMessages((prevMessages) =>
         prevMessages.map((msg) =>
           msg.id === tempId
             ? {
                 ...response.data,
-                id: response.data._id ? response.data._id.toString() : response.data._id,
+                id: response.data._id
+                  ? response.data._id.toString()
+                  : response.data._id,
                 timestamp: response.data.createdAt || response.data.updatedAt,
                 pending: false,
               }
-            : msg,
-        ),
-      )
+            : msg
+        )
+      );
     } catch (error) {
-      console.log("Error sending message", error)
+      console.log("Error sending message", error);
 
       setMessages((prevMessages) =>
-        prevMessages.map((msg) => (msg.id === tempId ? { ...msg, failed: true, pending: false } : msg)),
-      )
+        prevMessages.map((msg) =>
+          msg.id === tempId ? { ...msg, failed: true, pending: false } : msg
+        )
+      );
 
-      Alert.alert("Error", "Failed to send message. Tap to retry.")
+      Alert.alert("Error", "Failed to send message. Tap to retry.");
     } finally {
-      setSending(false)
+      setSending(false);
     }
-  }
+  };
 
   const retryMessage = async (failedMessage) => {
-    setMessages((prevMessages) => prevMessages.filter((msg) => msg.id !== failedMessage.id))
+    setMessages((prevMessages) =>
+      prevMessages.filter((msg) => msg.id !== failedMessage.id)
+    );
 
-    setInputMessage(failedMessage.content)
-    setTimeout(() => sendMessage(), 100)
-  }
+    setInputMessage(failedMessage.content);
+    setTimeout(() => sendMessage(), 100);
+  };
 
   const formatTime = (timestamp) => {
     try {
       // Check if timestamp is undefined or null
       if (!timestamp) {
-        console.log("Missing timestamp")
-        return "Just now"
+        console.log("Missing timestamp");
+        return "Just now";
       }
 
-      const date = new Date(timestamp)
+      const date = new Date(timestamp);
 
       // Check if date is invalid after creation
       if (isNaN(date.getTime())) {
-        console.log("Invalid date:", timestamp)
-        return "Just now"
+        console.log("Invalid date:", timestamp);
+        return "Just now";
       }
 
       return date.toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
-      })
+      });
     } catch (error) {
-      console.log("Error formatting time:", error)
-      return "Just now"
+      console.log("Error formatting time:", error);
+      return "Just now";
     }
-  }
+  };
 
   // This is the key function to determine if a message is from the current user
   const isMessageFromCurrentUser = (message) => {
     // First try with user.id (from AuthContext)
     if (user && user.id && String(message.senderId) === String(user.id)) {
-      return true
+      return true;
     }
 
     // Then try with user._id (in case that's how it's stored)
     if (user && user._id && String(message.senderId) === String(user._id)) {
-      return true
+      return true;
     }
 
-    return false
-  }
+    return false;
+  };
 
   if (loading && messages.length === 0) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#00acc1" />
       </View>
-    )
+    );
   }
 
   if (error && messages.length === 0) {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={() => fetchMessages(true)}>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={() => fetchMessages(true)}
+        >
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
-    )
+    );
   }
 
   return (
@@ -296,7 +311,10 @@ export default function ChatScreen({ route }) {
         style={styles.container}
         keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
-        <LinearGradient colors={["#00acc1", "rgba(0, 172, 193, 0.1)"]} style={styles.gradientBackground} />
+        <LinearGradient
+          colors={["#00acc1", "rgba(0, 172, 193, 0.1)"]}
+          style={styles.gradientBackground}
+        />
         <FlatList
           inverted={true}
           ref={flatListRef}
@@ -304,7 +322,7 @@ export default function ChatScreen({ route }) {
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => {
             // Use the helper function to determine if message is from current user
-            const isCurrentUser = isMessageFromCurrentUser(item)
+            const isCurrentUser = isMessageFromCurrentUser(item);
 
             return (
               <View style={styles.messageRow}>
@@ -319,16 +337,22 @@ export default function ChatScreen({ route }) {
                         item.failed && styles.failedMessage,
                       ]}
                     >
-                      <Text style={[styles.messageText, styles.sentText]}>{item.content}</Text>
+                      <Text style={[styles.messageText, styles.sentText]}>
+                        {item.content}
+                      </Text>
                       <View style={styles.messageFooter}>
-                        {item.pending && <ActivityIndicator size="small" color="#fff" />}
+                        {item.pending && (
+                          <ActivityIndicator size="small" color="#fff" />
+                        )}
                         {item.failed && (
                           <TouchableOpacity onPress={() => retryMessage(item)}>
                             <Text style={styles.failedText}>Tap to retry</Text>
                           </TouchableOpacity>
                         )}
                         {!item.pending && !item.failed && (
-                          <Text style={[styles.messageTime, styles.sentTime]}>{formatTime(item.timestamp)}</Text>
+                          <Text style={[styles.messageTime, styles.sentTime]}>
+                            {formatTime(item.timestamp)}
+                          </Text>
                         )}
                       </View>
                     </View>
@@ -344,23 +368,31 @@ export default function ChatScreen({ route }) {
                         item.failed && styles.failedMessage,
                       ]}
                     >
-                      <Text style={[styles.messageText, styles.receivedText]}>{item.content}</Text>
+                      <Text style={[styles.messageText, styles.receivedText]}>
+                        {item.content}
+                      </Text>
                       <View style={styles.messageFooter}>
-                        {item.pending && <ActivityIndicator size="small" color="#00acc1" />}
+                        {item.pending && (
+                          <ActivityIndicator size="small" color="#00acc1" />
+                        )}
                         {item.failed && (
                           <TouchableOpacity onPress={() => retryMessage(item)}>
                             <Text style={styles.failedText}>Tap to retry</Text>
                           </TouchableOpacity>
                         )}
                         {!item.pending && !item.failed && (
-                          <Text style={[styles.messageTime, styles.receivedTime]}>{formatTime(item.timestamp)}</Text>
+                          <Text
+                            style={[styles.messageTime, styles.receivedTime]}
+                          >
+                            {formatTime(item.timestamp)}
+                          </Text>
                         )}
                       </View>
                     </View>
                   </View>
                 )}
               </View>
-            )
+            );
           }}
           contentContainerStyle={styles.messagesList}
           onEndReached={hasMore ? loadMoreMessages : null}
@@ -380,7 +412,13 @@ export default function ChatScreen({ route }) {
             ) : null
           }
           ListFooterComponent={
-            loadingMore ? <ActivityIndicator size="small" color="#00acc1" style={styles.loadingMore} /> : null
+            loadingMore ? (
+              <ActivityIndicator
+                size="small"
+                color="#00acc1"
+                style={styles.loadingMore}
+              />
+            ) : null
           }
         />
         <View style={styles.inputContainer}>
@@ -392,16 +430,23 @@ export default function ChatScreen({ route }) {
             multiline
           />
           <TouchableOpacity
-            style={[styles.sendButton, (sending || inputMessage.trim() === "") && styles.disabledButton]}
+            style={[
+              styles.sendButton,
+              (sending || inputMessage.trim() === "") && styles.disabledButton,
+            ]}
             onPress={sendMessage}
             disabled={sending || inputMessage.trim() === ""}
           >
-            {sending ? <ActivityIndicator size="small" color="#fff" /> : <Send size={20} color="#fff" />}
+            {sending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Send size={20} color="#fff" />
+            )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -591,4 +636,4 @@ const styles = StyleSheet.create({
     opacity: 1,
     transform: [{ scale: 1.1 }],
   },
-})
+});

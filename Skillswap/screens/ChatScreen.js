@@ -13,6 +13,8 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Keyboard,
+  Dimensions,
 } from "react-native";
 import { Send } from "lucide-react-native";
 import { AuthContext } from "../context/AuthContext";
@@ -25,6 +27,8 @@ import {
   markMessagesAsRead,
   sendTypingStatus,
 } from "../services/socketService";
+
+const { width, height } = Dimensions.get("window");
 
 export default function ChatScreen({ route }) {
   const { chatId, userId } = route.params;
@@ -39,6 +43,7 @@ export default function ChatScreen({ route }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [otherUserTyping, setOtherUserTyping] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const flatListRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
@@ -54,12 +59,12 @@ export default function ChatScreen({ route }) {
       socket.on("new_message", (data) => {
         if (data.chatId === chatId) {
           setMessages((prevMessages) => [
+            ...prevMessages,
             {
               ...data,
               id: data._id || `temp-${Date.now()}`,
               timestamp: data.createdAt || new Date().toISOString(),
             },
-            ...prevMessages,
           ]);
 
           // Mark message as read since we're in the chat
@@ -75,11 +80,30 @@ export default function ChatScreen({ route }) {
       });
     }
 
+    // Keyboard listeners
+    const keyboardDidShowListener = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      () => {
+        setKeyboardVisible(true);
+        setTimeout(() => {
+          if (flatListRef.current && messages.length > 0) {
+            flatListRef.current.scrollToEnd({ animated: true });
+          }
+        }, 100);
+      }
+    );
+
+    const keyboardDidHideListener = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      () => {
+        setKeyboardVisible(false);
+      }
+    );
+
     return () => {
       // Leave chat room when component unmounts
       leaveRoom(chatId);
 
-      // Remove event listeners
       const socket = getSocket();
       if (socket) {
         socket.off("new_message");
@@ -90,8 +114,15 @@ export default function ChatScreen({ route }) {
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
+
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
     };
   }, [chatId, user.id]);
+
+  useEffect(() => {
+    flatListRef.current?.scrollToEnd({ animated: true });
+  }, [messages]);
 
   const fetchMessages = async (refresh = false) => {
     try {
@@ -102,7 +133,7 @@ export default function ChatScreen({ route }) {
         `/messages/${chatId}?page=${currentPage}&limit=20`
       );
 
-      const newMessages = response.data.messages.map((msg) => ({
+      const fetchedMessages = response.data.messages.map((msg) => ({
         ...msg,
         id: msg._id ? msg._id.toString() : msg._id,
         timestamp: msg.createdAt || msg.updatedAt || new Date().toISOString(),
@@ -110,10 +141,10 @@ export default function ChatScreen({ route }) {
       setHasMore(response.data.hasMore);
 
       if (refresh || currentPage === 1) {
-        setMessages(newMessages);
+        setMessages(fetchedMessages.reverse());
         setPage(2);
       } else {
-        setMessages((prevMessages) => [...newMessages, ...prevMessages]);
+        setMessages((prevMessages) => [...fetchedMessages, ...prevMessages]);
         setPage(currentPage + 1);
       }
     } catch (error) {
@@ -195,7 +226,7 @@ export default function ChatScreen({ route }) {
       pending: true,
     };
 
-    setMessages((prevMessages) => [newMessage, ...prevMessages]);
+    setMessages((prevMessages) => [...prevMessages, newMessage]);
 
     try {
       const response = await api.post("/messages", {
@@ -229,6 +260,11 @@ export default function ChatScreen({ route }) {
       Alert.alert("Error", "Failed to send message. Tap to retry.");
     } finally {
       setSending(false);
+
+      // Scroll to bottom after sending
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
     }
   };
 
@@ -264,6 +300,39 @@ export default function ChatScreen({ route }) {
     } catch (error) {
       console.log("Error formatting time:", error);
       return "Just now";
+    }
+  };
+
+  const formatDate = (timestamp) => {
+    try {
+      const now = new Date();
+      const yesterday = new Date();
+      yesterday.setDate(now.getDate() - 1);
+      const messageDate = new Date(timestamp);
+
+      if (
+        messageDate.toDateString() === now.toDateString() &&
+        now.toDateString() === new Date().toDateString()
+      ) {
+        return "Today";
+      } else if (messageDate.toDateString() === yesterday.toDateString()) {
+        return "Yesterday";
+      } else {
+        const diffInDays = Math.floor(
+          (now - messageDate) / (1000 * 60 * 60 * 24)
+        );
+        if (diffInDays < 7) {
+          return messageDate.toLocaleDateString([], { weekday: "long" });
+        } else {
+          return messageDate.toLocaleDateString([], {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+          });
+        }
+      }
+    } catch (error) {
+      return "";
     }
   };
 
@@ -305,10 +374,10 @@ export default function ChatScreen({ route }) {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={["left", "right"]}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
         <LinearGradient
@@ -316,88 +385,119 @@ export default function ChatScreen({ route }) {
           style={styles.gradientBackground}
         />
         <FlatList
-          inverted={true}
           ref={flatListRef}
           data={messages}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => {
-            // Use the helper function to determine if message is from current user
+          renderItem={({ item, index }) => {
             const isCurrentUser = isMessageFromCurrentUser(item);
+            const showDate =
+              index === 0 ||
+              new Date(item.timestamp).toDateString() !==
+                new Date(messages[index - 1]?.timestamp).toDateString();
 
             return (
-              <View style={styles.messageRow}>
-                {isCurrentUser ? (
-                  // Current user's message (right side)
-                  <View style={styles.rightMessageContainer}>
-                    <View
-                      style={[
-                        styles.messageBubble,
-                        styles.sentBubble,
-                        item.pending && styles.pendingMessage,
-                        item.failed && styles.failedMessage,
-                      ]}
-                    >
-                      <Text style={[styles.messageText, styles.sentText]}>
-                        {item.content}
-                      </Text>
-                      <View style={styles.messageFooter}>
-                        {item.pending && (
-                          <ActivityIndicator size="small" color="#fff" />
-                        )}
-                        {item.failed && (
-                          <TouchableOpacity onPress={() => retryMessage(item)}>
-                            <Text style={styles.failedText}>Tap to retry</Text>
-                          </TouchableOpacity>
-                        )}
-                        {!item.pending && !item.failed && (
-                          <Text style={[styles.messageTime, styles.sentTime]}>
-                            {formatTime(item.timestamp)}
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-                  </View>
-                ) : (
-                  // Other user's message (left side)
-                  <View style={styles.leftMessageContainer}>
-                    <View
-                      style={[
-                        styles.messageBubble,
-                        styles.receivedBubble,
-                        item.pending && styles.pendingMessage,
-                        item.failed && styles.failedMessage,
-                      ]}
-                    >
-                      <Text style={[styles.messageText, styles.receivedText]}>
-                        {item.content}
-                      </Text>
-                      <View style={styles.messageFooter}>
-                        {item.pending && (
-                          <ActivityIndicator size="small" color="#00acc1" />
-                        )}
-                        {item.failed && (
-                          <TouchableOpacity onPress={() => retryMessage(item)}>
-                            <Text style={styles.failedText}>Tap to retry</Text>
-                          </TouchableOpacity>
-                        )}
-                        {!item.pending && !item.failed && (
-                          <Text
-                            style={[styles.messageTime, styles.receivedTime]}
-                          >
-                            {formatTime(item.timestamp)}
-                          </Text>
-                        )}
-                      </View>
-                    </View>
+              <>
+                {showDate && (
+                  <View style={styles.dateContainer}>
+                    <Text style={styles.dateText}>
+                      {formatDate(item.timestamp)}
+                    </Text>
                   </View>
                 )}
-              </View>
+                <View style={styles.messageRow}>
+                  {isCurrentUser ? (
+                    // Current user's message (right side)
+                    <View style={styles.rightMessageContainer}>
+                      <View
+                        style={[
+                          styles.messageBubble,
+                          styles.sentBubble,
+                          item.pending && styles.pendingMessage,
+                          item.failed && styles.failedMessage,
+                        ]}
+                      >
+                        <Text style={[styles.messageText, styles.sentText]}>
+                          {item.content}
+                        </Text>
+                        <View style={styles.messageFooter}>
+                          {item.pending && (
+                            <ActivityIndicator size="small" color="#fff" />
+                          )}
+                          {item.failed && (
+                            <TouchableOpacity
+                              onPress={() => retryMessage(item)}
+                            >
+                              <Text style={styles.failedText}>
+                                Tap to retry
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                          {!item.pending && !item.failed && (
+                            <Text style={[styles.messageTime, styles.sentTime]}>
+                              {formatTime(item.timestamp)}
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+                    </View>
+                  ) : (
+                    // Other user's message (left side)
+                    <View style={styles.leftMessageContainer}>
+                      <View
+                        style={[
+                          styles.messageBubble,
+                          styles.receivedBubble,
+                          item.pending && styles.pendingMessage,
+                          item.failed && styles.failedMessage,
+                        ]}
+                      >
+                        <Text style={[styles.messageText, styles.receivedText]}>
+                          {item.content}
+                        </Text>
+                        <View style={styles.messageFooter}>
+                          {item.pending && (
+                            <ActivityIndicator size="small" color="#00acc1" />
+                          )}
+                          {item.failed && (
+                            <TouchableOpacity
+                              onPress={() => retryMessage(item)}
+                            >
+                              <Text style={styles.failedText}>
+                                Tap to retry
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                          {!item.pending && !item.failed && (
+                            <Text
+                              style={[styles.messageTime, styles.receivedTime]}
+                            >
+                              {formatTime(item.timestamp)}
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              </>
             );
           }}
           contentContainerStyle={styles.messagesList}
           onEndReached={hasMore ? loadMoreMessages : null}
           onEndReachedThreshold={0.3}
+          onContentSizeChange={() => {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }}
           ListHeaderComponent={
+            loadingMore ? (
+              <ActivityIndicator
+                size="small"
+                color="#00acc1"
+                style={styles.loadingMore}
+              />
+            ) : null
+          }
+          ListFooterComponent={
             otherUserTyping ? (
               <View style={styles.typingContainer}>
                 <View style={styles.typingBubble}>
@@ -409,25 +509,22 @@ export default function ChatScreen({ route }) {
                   </View>
                 </View>
               </View>
-            ) : null
-          }
-          ListFooterComponent={
-            loadingMore ? (
-              <ActivityIndicator
-                size="small"
-                color="#00acc1"
-                style={styles.loadingMore}
-              />
-            ) : null
+            ) : (
+              <View style={{ height: 0 }} />
+            )
           }
         />
+
+        {/* Input container */}
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
             value={inputMessage}
             onChangeText={handleInputChange}
             placeholder="Type a message..."
+            placeholderTextColor="#999"
             multiline
+            maxLength={1000}
           />
           <TouchableOpacity
             style={[
@@ -464,6 +561,7 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     height: 120,
+    zIndex: 0,
   },
   loadingContainer: {
     flex: 1,
@@ -493,12 +591,24 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   messagesList: {
-    padding: 15,
-    paddingBottom: 30, // Add extra padding at the bottom
+    padding: 16,
+    paddingBottom: 16,
+  },
+  dateContainer: {
+    alignItems: "center",
+    marginVertical: 16,
+  },
+  dateText: {
+    fontSize: 14,
+    color: "#666",
+    backgroundColor: "#f0f4f8",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   messageRow: {
     width: "100%",
-    marginBottom: 10,
+    marginBottom: 12,
   },
   leftMessageContainer: {
     alignSelf: "flex-start",
@@ -535,6 +645,7 @@ const styles = StyleSheet.create({
   },
   messageText: {
     fontSize: 16,
+    marginBottom: 4,
   },
   sentText: {
     color: "#fff",
@@ -546,10 +657,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "flex-end",
     alignItems: "center",
-    marginTop: 4,
   },
   messageTime: {
-    fontSize: 10,
+    fontSize: 12,
+    alignSelf: "flex-end",
   },
   sentTime: {
     color: "rgba(255, 255, 255, 0.7)",
@@ -567,29 +678,42 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     flexDirection: "row",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    backgroundColor: "#fff",
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "#ccc",
     alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderTopColor: "#ddd",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: -3 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   input: {
     flex: 1,
     backgroundColor: "#f0f0f0",
-    borderRadius: 25,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === "ios" ? 10 : 8,
+    paddingTop: Platform.OS === "ios" ? 10 : 8, // Ensure consistent padding on iOS and Android
     fontSize: 16,
-    marginRight: 10,
+    marginRight: 12,
     maxHeight: 100,
+    minHeight: 40,
     color: "#333",
   },
   sendButton: {
     backgroundColor: "#00acc1",
-    borderRadius: 25,
-    width: 45,
-    height: 45,
+    borderRadius: 24,
+    width: 44,
+    height: 44,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -598,7 +722,7 @@ const styles = StyleSheet.create({
   },
   typingContainer: {
     alignItems: "flex-start",
-    marginBottom: 10,
+    marginTop: 8,
   },
   typingBubble: {
     backgroundColor: "#f0f0f0",

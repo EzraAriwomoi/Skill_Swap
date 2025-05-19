@@ -509,9 +509,7 @@ export default function ChatScreen({ route }) {
                   </View>
                 </View>
               </View>
-            ) : (
-              <View style={{ height: 0 }} />
-            )
+            ) : null
           }
         />
 

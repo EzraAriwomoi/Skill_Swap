@@ -1,0 +1,24 @@
+services:
+  frontend:
+    build: ./Skillswap
+    ports:
+      - "8081:8081"
+      - "19000:19000"
+      - "19001:19001"
+      - "19002:19002"
+    working_dir: /app
+    volumes:
+      - ./Skillswap:/app
+    depends_on:
+      - backend
+    stdin_open: true
+    tty: true
+    command: ["npx", "expo", "start", "--lan"]
+
+  backend:
+    build: ./Backend-skillswap
+    ports:
+      - "3000:3000"
+    working_dir: /app
+    volumes:
+      - ./Backend-skillswap:/app
